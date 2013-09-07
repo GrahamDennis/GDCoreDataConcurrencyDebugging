@@ -6,7 +6,7 @@
 //  Copyright (c) 2013 Graham Dennis. All rights reserved.
 //
 
-
+#import <CoreData/CoreData.h>
 
 @interface NSEntityDescription (GDConcurrencyDebugging)
 
