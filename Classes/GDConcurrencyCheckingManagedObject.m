@@ -62,7 +62,7 @@ Class GDConcurrencyCheckingManagedObjectClassForClass(Class managedObjectClass)
 
 static void (*GDConcurrencyFailureFunction)(SEL _cmd) = NULL;
 
-void GDConcurrencyCheckingManagedObjectSetFailureHandler(void (*failureFunction)(SEL _cmd))
+void GDCoreDataConcurrencyDebuggingSetFailureHandler(void (*failureFunction)(SEL _cmd))
 {
     GDConcurrencyFailureFunction = failureFunction;
 }

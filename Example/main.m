@@ -69,7 +69,7 @@ int main(int argc, const char * argv[])
 {
 
     @autoreleasepool {
-        GDConcurrencyCheckingManagedObjectSetFailureHandler(ConcurrencyFailure);
+        GDCoreDataConcurrencyDebuggingSetFailureHandler(ConcurrencyFailure);
         // Create the managed object context
         NSManagedObjectContext *context1 = managedObjectContext();
         //        id proxy = GDFastProxyForObject(context1);

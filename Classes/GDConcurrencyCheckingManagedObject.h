@@ -7,4 +7,4 @@
 //
 
 extern Class GDConcurrencyCheckingManagedObjectClassForClass(Class managedObjectClass);
-extern void GDConcurrencyCheckingManagedObjectSetFailureHandler(void (*failureFunction)(SEL _cmd));
+extern void GDCoreDataConcurrencyDebuggingSetFailureHandler(void (*failureFunction)(SEL _cmd));
