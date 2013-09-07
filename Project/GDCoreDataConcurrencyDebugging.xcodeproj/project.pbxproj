@@ -1,0 +1,398 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 46;
+	objects = {
+
+/* Begin PBXAggregateTarget section */
+		BFD3EBBD17DA95F300C84390 /* mogenerator */ = {
+			isa = PBXAggregateTarget;
+			buildConfigurationList = BFD3EBBE17DA95F300C84390 /* Build configuration list for PBXAggregateTarget "mogenerator" */;
+			buildPhases = (
+				BFD3EBC117DA95FC00C84390 /* mogenerator */,
+			);
+			dependencies = (
+			);
+			name = mogenerator;
+			productName = mogenerator;
+		};
+/* End PBXAggregateTarget section */
+
+/* Begin PBXBuildFile section */
+		89502BC7CC8045B4A1E1CF78 /* libPods.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 3A71E1F07DBB4D30B4C6B980 /* libPods.a */; };
+		BFD3EBA617DA884400C84390 /* CoreData.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = BFD3EBA517DA884400C84390 /* CoreData.framework */; };
+		BFD3EBA817DA884400C84390 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = BFD3EBA717DA884400C84390 /* Foundation.framework */; };
+		BFD3EBAB17DA884400C84390 /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = BFD3EBAA17DA884400C84390 /* main.m */; };
+		BFD3EBB017DA884400C84390 /* Example.xcdatamodeld in Sources */ = {isa = PBXBuildFile; fileRef = BFD3EBAE17DA884400C84390 /* Example.xcdatamodeld */; };
+		BFD3EBC517DA97F700C84390 /* _EntityWithCustomClass.m in Sources */ = {isa = PBXBuildFile; fileRef = BFD3EBC417DA97F700C84390 /* _EntityWithCustomClass.m */; };
+		BFD3EBC817DA980600C84390 /* EntityWithCustomClass.m in Sources */ = {isa = PBXBuildFile; fileRef = BFD3EBC717DA980600C84390 /* EntityWithCustomClass.m */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		BFD3EBA217DA884400C84390 /* CopyFiles */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = /usr/share/man/man1/;
+			dstSubfolderSpec = 0;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 1;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXFileReference section */
+		063A817D217D4486BDFE9698 /* Pods.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = Pods.xcconfig; path = Pods/Pods.xcconfig; sourceTree = SOURCE_ROOT; };
+		3A71E1F07DBB4D30B4C6B980 /* libPods.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = libPods.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		BFD3EB8517DA869400C84390 /* Cocoa.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Cocoa.framework; path = System/Library/Frameworks/Cocoa.framework; sourceTree = SDKROOT; };
+		BFD3EB8817DA869400C84390 /* AppKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AppKit.framework; path = System/Library/Frameworks/AppKit.framework; sourceTree = SDKROOT; };
+		BFD3EB8917DA869400C84390 /* CoreData.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreData.framework; path = System/Library/Frameworks/CoreData.framework; sourceTree = SDKROOT; };
+		BFD3EB8A17DA869400C84390 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = System/Library/Frameworks/Foundation.framework; sourceTree = SDKROOT; };
+		BFD3EBA417DA884400C84390 /* Example */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = Example; sourceTree = BUILT_PRODUCTS_DIR; };
+		BFD3EBA517DA884400C84390 /* CoreData.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreData.framework; path = System/Library/Frameworks/CoreData.framework; sourceTree = SDKROOT; };
+		BFD3EBA717DA884400C84390 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = System/Library/Frameworks/Foundation.framework; sourceTree = SDKROOT; };
+		BFD3EBAA17DA884400C84390 /* main.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = main.m; sourceTree = "<group>"; };
+		BFD3EBAD17DA884400C84390 /* Example-Prefix.pch */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "Example-Prefix.pch"; sourceTree = "<group>"; };
+		BFD3EBAF17DA884400C84390 /* Example.xcdatamodel */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcdatamodel; path = Example.xcdatamodel; sourceTree = "<group>"; };
+		BFD3EBC317DA97F700C84390 /* _EntityWithCustomClass.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = _EntityWithCustomClass.h; sourceTree = "<group>"; };
+		BFD3EBC417DA97F700C84390 /* _EntityWithCustomClass.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = _EntityWithCustomClass.m; sourceTree = "<group>"; };
+		BFD3EBC617DA980600C84390 /* EntityWithCustomClass.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = EntityWithCustomClass.h; sourceTree = "<group>"; };
+		BFD3EBC717DA980600C84390 /* EntityWithCustomClass.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = EntityWithCustomClass.m; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		BFD3EBA117DA884400C84390 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				BFD3EBA617DA884400C84390 /* CoreData.framework in Frameworks */,
+				BFD3EBA817DA884400C84390 /* Foundation.framework in Frameworks */,
+				89502BC7CC8045B4A1E1CF78 /* libPods.a in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		BFD3EB7917DA869400C84390 = {
+			isa = PBXGroup;
+			children = (
+				BFD3EBA917DA884400C84390 /* Example */,
+				BFD3EB8417DA869400C84390 /* Frameworks */,
+				BFD3EB8317DA869400C84390 /* Products */,
+				063A817D217D4486BDFE9698 /* Pods.xcconfig */,
+			);
+			sourceTree = "<group>";
+		};
+		BFD3EB8317DA869400C84390 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				BFD3EBA417DA884400C84390 /* Example */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		BFD3EB8417DA869400C84390 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				BFD3EB8517DA869400C84390 /* Cocoa.framework */,
+				BFD3EBA517DA884400C84390 /* CoreData.framework */,
+				BFD3EBA717DA884400C84390 /* Foundation.framework */,
+				BFD3EB8717DA869400C84390 /* Other Frameworks */,
+				3A71E1F07DBB4D30B4C6B980 /* libPods.a */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		BFD3EB8717DA869400C84390 /* Other Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				BFD3EB8817DA869400C84390 /* AppKit.framework */,
+				BFD3EB8917DA869400C84390 /* CoreData.framework */,
+				BFD3EB8A17DA869400C84390 /* Foundation.framework */,
+			);
+			name = "Other Frameworks";
+			sourceTree = "<group>";
+		};
+		BFD3EBA917DA884400C84390 /* Example */ = {
+			isa = PBXGroup;
+			children = (
+				BFD3EBC217DA97E500C84390 /* Core Data classes */,
+				BFD3EBAA17DA884400C84390 /* main.m */,
+				BFD3EBAE17DA884400C84390 /* Example.xcdatamodeld */,
+				BFD3EBAC17DA884400C84390 /* Supporting Files */,
+			);
+			name = Example;
+			path = ../Example;
+			sourceTree = "<group>";
+		};
+		BFD3EBAC17DA884400C84390 /* Supporting Files */ = {
+			isa = PBXGroup;
+			children = (
+				BFD3EBAD17DA884400C84390 /* Example-Prefix.pch */,
+			);
+			name = "Supporting Files";
+			sourceTree = "<group>";
+		};
+		BFD3EBC217DA97E500C84390 /* Core Data classes */ = {
+			isa = PBXGroup;
+			children = (
+				BFD3EBC317DA97F700C84390 /* _EntityWithCustomClass.h */,
+				BFD3EBC417DA97F700C84390 /* _EntityWithCustomClass.m */,
+				BFD3EBC617DA980600C84390 /* EntityWithCustomClass.h */,
+				BFD3EBC717DA980600C84390 /* EntityWithCustomClass.m */,
+			);
+			name = "Core Data classes";
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		BFD3EBA317DA884400C84390 /* Example */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = BFD3EBB317DA884400C84390 /* Build configuration list for PBXNativeTarget "Example" */;
+			buildPhases = (
+				4C1EF852DA514B64B76DE949 /* Check Pods Manifest.lock */,
+				BFD3EBA017DA884400C84390 /* Sources */,
+				BFD3EBA117DA884400C84390 /* Frameworks */,
+				BFD3EBA217DA884400C84390 /* CopyFiles */,
+				09545A77AF5E431CB18C6E85 /* Copy Pods Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = Example;
+			productName = Example;
+			productReference = BFD3EBA417DA884400C84390 /* Example */;
+			productType = "com.apple.product-type.tool";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		BFD3EB7A17DA869400C84390 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				LastUpgradeCheck = 0460;
+				ORGANIZATIONNAME = "Graham Dennis";
+			};
+			buildConfigurationList = BFD3EB7D17DA869400C84390 /* Build configuration list for PBXProject "GDCoreDataConcurrencyDebugging" */;
+			compatibilityVersion = "Xcode 3.2";
+			developmentRegion = English;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+			);
+			mainGroup = BFD3EB7917DA869400C84390;
+			productRefGroup = BFD3EB8317DA869400C84390 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				BFD3EBA317DA884400C84390 /* Example */,
+				BFD3EBBD17DA95F300C84390 /* mogenerator */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		09545A77AF5E431CB18C6E85 /* Copy Pods Resources */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+			);
+			name = "Copy Pods Resources";
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "\"${SRCROOT}/Pods/Pods-resources.sh\"\n";
+			showEnvVarsInLog = 0;
+		};
+		4C1EF852DA514B64B76DE949 /* Check Pods Manifest.lock */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+			);
+			name = "Check Pods Manifest.lock";
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "diff \"${PODS_ROOT}/../Podfile.lock\" \"${PODS_ROOT}/Manifest.lock\" > /dev/null\nif [[ $? != 0 ]] ; then\n    cat << EOM\nerror: The sandbox is not in sync with the Podfile.lock. Run 'pod install' or update your CocoaPods installation.\nEOM\n    exit 1\nfi\n";
+			showEnvVarsInLog = 0;
+		};
+		BFD3EBC117DA95FC00C84390 /* mogenerator */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+			);
+			name = mogenerator;
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "export PATH=$PATH:/usr/local/bin\nmogenerator -m \"../Example/Example.xcdatamodeld\" --template-var arc=true -O ../Example/\n";
+		};
+/* End PBXShellScriptBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		BFD3EBA017DA884400C84390 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				BFD3EBAB17DA884400C84390 /* main.m in Sources */,
+				BFD3EBB017DA884400C84390 /* Example.xcdatamodeld in Sources */,
+				BFD3EBC517DA97F700C84390 /* _EntityWithCustomClass.m in Sources */,
+				BFD3EBC817DA980600C84390 /* EntityWithCustomClass.m in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		BFD3EB9117DA869400C84390 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ARCHS = "$(ARCHS_STANDARD_64_BIT)";
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++0x";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				GCC_C_LANGUAGE_STANDARD = gnu99;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_ENABLE_OBJC_EXCEPTIONS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_SYMBOLS_PRIVATE_EXTERN = NO;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 10.8;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = macosx;
+			};
+			name = Debug;
+		};
+		BFD3EB9217DA869400C84390 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ARCHS = "$(ARCHS_STANDARD_64_BIT)";
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++0x";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = YES;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				GCC_C_LANGUAGE_STANDARD = gnu99;
+				GCC_ENABLE_OBJC_EXCEPTIONS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 10.8;
+				SDKROOT = macosx;
+			};
+			name = Release;
+		};
+		BFD3EBB417DA884400C84390 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 063A817D217D4486BDFE9698 /* Pods.xcconfig */;
+			buildSettings = {
+				CLANG_ENABLE_OBJC_ARC = YES;
+				GCC_PRECOMPILE_PREFIX_HEADER = YES;
+				GCC_PREFIX_HEADER = "../Example/Example-Prefix.pch";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Debug;
+		};
+		BFD3EBB517DA884400C84390 /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 063A817D217D4486BDFE9698 /* Pods.xcconfig */;
+			buildSettings = {
+				CLANG_ENABLE_OBJC_ARC = YES;
+				GCC_PRECOMPILE_PREFIX_HEADER = YES;
+				GCC_PREFIX_HEADER = "../Example/Example-Prefix.pch";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Release;
+		};
+		BFD3EBBF17DA95F300C84390 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Debug;
+		};
+		BFD3EBC017DA95F300C84390 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		BFD3EB7D17DA869400C84390 /* Build configuration list for PBXProject "GDCoreDataConcurrencyDebugging" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				BFD3EB9117DA869400C84390 /* Debug */,
+				BFD3EB9217DA869400C84390 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		BFD3EBB317DA884400C84390 /* Build configuration list for PBXNativeTarget "Example" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				BFD3EBB417DA884400C84390 /* Debug */,
+				BFD3EBB517DA884400C84390 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		BFD3EBBE17DA95F300C84390 /* Build configuration list for PBXAggregateTarget "mogenerator" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				BFD3EBBF17DA95F300C84390 /* Debug */,
+				BFD3EBC017DA95F300C84390 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCVersionGroup section */
+		BFD3EBAE17DA884400C84390 /* Example.xcdatamodeld */ = {
+			isa = XCVersionGroup;
+			children = (
+				BFD3EBAF17DA884400C84390 /* Example.xcdatamodel */,
+			);
+			currentVersion = BFD3EBAF17DA884400C84390 /* Example.xcdatamodel */;
+			path = Example.xcdatamodeld;
+			sourceTree = "<group>";
+			versionGroupType = wrapper.xcdatamodel;
+		};
+/* End XCVersionGroup section */
+	};
+	rootObject = BFD3EB7A17DA869400C84390 /* Project object */;
+}
