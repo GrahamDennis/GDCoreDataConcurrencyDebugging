@@ -91,33 +91,34 @@ static Class GetRealSuperclass(id obj)
     return class_getSuperclass(class);
 }
 
-static const void *AssociatedConcurrencyIdentifierKey = &AssociatedConcurrencyIdentifierKey;
-static const void *AssociatedContextKey = &AssociatedContextKey;
+static const void *ConcurrencyIdentifierKey = &ConcurrencyIdentifierKey;
+static const void *ConcurrencyTypeKey = &ConcurrencyTypeKey;
 
 static void *CurrentConcurrencyIdentifierForManagedObject(NSManagedObject *object)
 {
     NSCParameterAssert(object);
     
 #ifdef COREDATA_CONCURRENCY_AVAILABLE
-    NSManagedObjectContext *context = objc_getAssociatedObject(object, AssociatedContextKey);
-    if (context.concurrencyType == NSConfinementConcurrencyType) {
+    NSManagedObjectContextConcurrencyType concurrencyType = (NSManagedObjectContextConcurrencyType)objc_getAssociatedObject(object, ConcurrencyTypeKey);
+    if (concurrencyType == NSConfinementConcurrencyType) {
 #endif
         return pthread_self();
 #ifdef COREDATA_CONCURRENCY_AVAILABLE
-    } else if (context.concurrencyType == NSMainQueueConcurrencyType) {
-        return dispatch_get_main_queue();
-    } else if (context.concurrencyType == NSPrivateQueueConcurrencyType) {
+    } else if (concurrencyType == NSMainQueueConcurrencyType) {
+        return dispatch_get_current_queue();
+    } else if (concurrencyType == NSPrivateQueueConcurrencyType) {
         return dispatch_get_current_queue();
     } else {
-        NSCAssert(NO, @"Unknown concurrency type %i", (int)context.concurrencyType);
+        NSCAssert(NO, @"Unknown concurrency type %i", (int)concurrencyType);
+        return NULL;
     }
 #endif
 }
 
-static void EnsureContextHasConcurrencyIdentifier(NSManagedObjectContext *context)
+static void *EnsureContextHasConcurrencyIdentifier(NSManagedObjectContext *context)
 {
-    void *concurrencyIdentifier = objc_getAssociatedObject(context, AssociatedConcurrencyIdentifierKey);
-    if (concurrencyIdentifier) return;
+    void *concurrencyIdentifier = objc_getAssociatedObject(context, ConcurrencyIdentifierKey);
+    if (concurrencyIdentifier) return concurrencyIdentifier;
     
 #ifdef COREDATA_CONCURRENCY_AVAILABLE
     if (context.concurrencyType == NSConfinementConcurrencyType) {
@@ -138,13 +139,13 @@ static void EnsureContextHasConcurrencyIdentifier(NSManagedObjectContext *contex
         NSCParameterAssert(NO);
     }
 #endif
-    objc_setAssociatedObject(context, AssociatedConcurrencyIdentifierKey, concurrencyIdentifier, OBJC_ASSOCIATION_ASSIGN);
+    objc_setAssociatedObject(context, ConcurrencyIdentifierKey, concurrencyIdentifier, OBJC_ASSOCIATION_ASSIGN);
+    return concurrencyIdentifier;
 }
 
 static void ValidateConcurrency(NSManagedObject *object, SEL _cmd)
 {
-    NSManagedObjectContext *context = objc_getAssociatedObject(object, AssociatedContextKey);
-    void *desiredConcurrencyIdentifier = (void *)objc_getAssociatedObject(context, AssociatedConcurrencyIdentifierKey);
+    void *desiredConcurrencyIdentifier = (void *)objc_getAssociatedObject(object, ConcurrencyIdentifierKey);
     BOOL concurrencyValid = (CurrentConcurrencyIdentifierForManagedObject(object) == desiredConcurrencyIdentifier);
     if (!concurrencyValid) {
         if (GDConcurrencyFailureFunction) GDConcurrencyFailureFunction(_cmd);
@@ -266,10 +267,13 @@ static void RegisterCustomSubclass(Class subclass, Class superclass)
 - (id)gd_initWithEntity:(NSEntityDescription *)entity insertIntoManagedObjectContext:(NSManagedObjectContext *)context
 {
     self = [self gd_initWithEntity:entity insertIntoManagedObjectContext:context];
-    objc_setAssociatedObject(self, AssociatedContextKey, context, OBJC_ASSOCIATION_ASSIGN);
     if (context)
     {
-        EnsureContextHasConcurrencyIdentifier(context);
+        void *concurrencyIdentifier = EnsureContextHasConcurrencyIdentifier(context);
+        objc_setAssociatedObject(self, ConcurrencyIdentifierKey, concurrencyIdentifier, OBJC_ASSOCIATION_ASSIGN);
+#ifdef COREDATA_CONCURRENCY_AVAILABLE
+        objc_setAssociatedObject(self, ConcurrencyTypeKey, (void *)context.concurrencyType, OBJC_ASSOCIATION_ASSIGN);
+#endif
     }
     return self;
 }
