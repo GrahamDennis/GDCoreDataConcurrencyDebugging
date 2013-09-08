@@ -87,12 +87,13 @@ static Class GetCustomSubclass(id obj)
 static Class GetRealSuperclass(id obj)
 {
     Class class = GetCustomSubclass(obj);
-    NSCAssert1(class, @"Coudn't find ZeroingWeakRef subclass in hierarchy starting from %@, should never happen", object_getClass(obj));
+    NSCAssert1(class, @"Coudn't find GDCoreDataConcurrencyDebugging subclass in hierarchy starting from %@, should never happen", object_getClass(obj));
     return class_getSuperclass(class);
 }
 
 static const void *ConcurrencyIdentifierKey = &ConcurrencyIdentifierKey;
 static const void *ConcurrencyTypeKey = &ConcurrencyTypeKey;
+static const void *ConcurrencyLastAutoreleaseBacktraceKey = &ConcurrencyLastAutoreleaseBacktraceKey;
 
 static void *CurrentConcurrencyIdentifierForManagedObject(NSManagedObject *object)
 {
@@ -143,16 +144,26 @@ static void *EnsureContextHasConcurrencyIdentifier(NSManagedObjectContext *conte
     return concurrencyIdentifier;
 }
 
-static void ValidateConcurrency(NSManagedObject *object, SEL _cmd)
+static BOOL ValidateConcurrency(NSManagedObject *object, SEL _cmd)
 {
     void *desiredConcurrencyIdentifier = (void *)objc_getAssociatedObject(object, ConcurrencyIdentifierKey);
     BOOL concurrencyValid = (CurrentConcurrencyIdentifierForManagedObject(object) == desiredConcurrencyIdentifier);
     if (!concurrencyValid) {
+        if (sel_isEqual(_cmd, @selector(dealloc))) {
+            // -dealloc sent on the wrong thread can be caused by an -autorelease being sent to an object causing it to live longer than it should
+            // In this situation, the stacktrace of the -dealloc isn't helpful, but the stacktrace of the last -autorelease will be.
+            NSString *autoreleaseStacktrace = objc_getAssociatedObject(object, ConcurrencyLastAutoreleaseBacktraceKey);
+            if (autoreleaseStacktrace) {
+                NSLog(@"Invalid -dealloc sent to managed object.  Last (invalid) autorelease stacktrace was: %@", autoreleaseStacktrace);
+            }
+        }
+        
         if (GDConcurrencyFailureFunction) GDConcurrencyFailureFunction(_cmd);
         else {
-            NSCAssert(concurrencyValid, @"Invalid concurrent access to managed object calling '%@'", NSStringFromSelector(_cmd));
+            NSLog(@"Invalid concurrent access to managed object calling '%@'; Stacktrace: %@", NSStringFromSelector(_cmd), [NSThread callStackSymbols]);
         }
     }
+    return concurrencyValid;
 }
 
 #pragma mark - Dynamic Subclass method implementations
@@ -167,7 +178,10 @@ static void CustomSubclassRelease(id self, SEL _cmd)
 
 static id CustomSubclassAutorelease(id self, SEL _cmd)
 {
-    ValidateConcurrency(self, _cmd);
+    if (!ValidateConcurrency(self, _cmd)) {
+        objc_setAssociatedObject(self, ConcurrencyLastAutoreleaseBacktraceKey, [NSThread callStackSymbols], OBJC_ASSOCIATION_COPY);
+    }
+    
     Class superclass = GetRealSuperclass(self);
     IMP superAutorelease = class_getMethodImplementation(superclass, @selector(autorelease));
     return ((id (*)(id, SEL))superAutorelease)(self, _cmd);
