@@ -18,7 +18,7 @@ For example the following code will trigger a console message:
     NSString *name = objectInContext2.name;
     
 
-If you use ARC, you may see many invalid `-autorelease` messages being sent by code which is otherwise valid.  For example:
+If you use ARC, in debug builds you may see many invalid `-autorelease` messages being sent by code which is otherwise valid.  For example:
 
     // This code is safe even if not in a -performBlock...: method because only -objectID is being sent.
     NSMutableArray *objectIDs = [NSMutableArray new];
@@ -27,14 +27,15 @@ If you use ARC, you may see many invalid `-autorelease` messages being sent by c
         [objectIDs addObject:[IdentityFunction(object) objectID]]; 
     }
 
-
-
+The compiler generates `-autorelease` calls in this situation (with optimisations turned off).  If you want to customise which messages are logged 'unsafe', you can call `GDCoreDataConcurrencyDebuggingSetFailureHandler` to set your own concurrency failure handler with function prototype `void ConcurrencyFailureHandler(SEL _cmd);`.
 
 ## Usage
 
-To run the example project; clone the repo, and run `pod install` from the Project directory first.
+To run the example project; clone the repo, and run `pod install` from the Project directory first.  The example demonstrates some invalid
 
 ## Requirements
+
+Mac OS X 10.6+, iOS 3.1+
 
 ## Installation
 
@@ -43,11 +44,23 @@ it simply add the following line to your Podfile:
 
     pod "GDCoreDataConcurrencyDebugging"
 
+If you're installing manually, be sure to not compile GDCoreDataConcurrencyDebugging with ARC (use the `-fno-objc-arc` flag).
+
+## How does it work?
+
+GDCoreDataConcurrencyDebugging uses dynamic subclassing to create a custom `NSManagedObject` subclass which tracks access to instance variables and when they are modified.  Note that GDCoreDataConcurrencyDebugging does not check that CoreData faulting collections (for relationships) are accessed correctly after they have been retrieved from an NSObject.
+
+GDCoreDataConcurrencyDebugging is based on code used in Mike Ash's [MAZeroingWeakRef] which uses dynamic subclassing to enable weak references to work on OS versions which don't natively support it.
+
 ## Author
 
 Graham Dennis, graham@grahamdennis.me
+
+
 
 ## License
 
 GDCoreDataConcurrencyDebugging is available under the MIT license. See the LICENSE file for more info.
 
+
+[MAZeroingWeakRef]: https://github.com/mikeash/MAZeroingWeakRef

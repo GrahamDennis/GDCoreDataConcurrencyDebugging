@@ -3,12 +3,12 @@ Pod::Spec.new do |s|
   s.version      = "0.1.0"
   s.summary      = "A short description of GDCoreDataConcurrencyDebugging."
   s.description  = <<-DESC
-                    An optional longer description of GDCoreDataConcurrencyDebugging
-
-                    * Markdown format.
-                    * Don't worry about the indent, we strip it!
+    
+    GDCoreDataConcurrencyDebugging helps you find cases where NSManagedObject's are being called on the wrong thread or dispatch queue.
+    Simply add it to your project and you will get a log message for every invalid access to an NSManagedObject.
+    
                    DESC
-  s.homepage     = "http://github.com/GrahamDennis/GDCoreDataConcurrencyDebugging"
+  s.homepage     = "https://github.com/GrahamDennis/GDCoreDataConcurrencyDebugging"
   s.license      = 'MIT'
   s.author       = { "Graham Dennis" => "graham@grahamdennis.me" }
   s.source       = { :git => "http://github.com/GrahamDennis/GDCoreDataConcurrencyDebugging.git", :tag => s.version.to_s }
