@@ -149,15 +149,6 @@ static BOOL ValidateConcurrency(NSManagedObject *object, SEL _cmd)
     void *desiredConcurrencyIdentifier = (void *)objc_getAssociatedObject(object, ConcurrencyIdentifierKey);
     BOOL concurrencyValid = (CurrentConcurrencyIdentifierForManagedObject(object) == desiredConcurrencyIdentifier);
     if (!concurrencyValid) {
-        if (sel_isEqual(_cmd, @selector(dealloc))) {
-            // -dealloc sent on the wrong thread can be caused by an -autorelease being sent to an object causing it to live longer than it should
-            // In this situation, the stacktrace of the -dealloc isn't helpful, but the stacktrace of the last -autorelease will be.
-            NSString *autoreleaseStacktrace = objc_getAssociatedObject(object, ConcurrencyLastAutoreleaseBacktraceKey);
-            if (autoreleaseStacktrace) {
-                NSLog(@"Invalid -dealloc sent to managed object.  Last (invalid) autorelease stacktrace was: %@", autoreleaseStacktrace);
-            }
-        }
-        
         if (GDConcurrencyFailureFunction) GDConcurrencyFailureFunction(_cmd);
         else {
             NSLog(@"Invalid concurrent access to managed object calling '%@'; Stacktrace: %@", NSStringFromSelector(_cmd), [NSThread callStackSymbols]);
@@ -170,7 +161,15 @@ static BOOL ValidateConcurrency(NSManagedObject *object, SEL _cmd)
 
 static void CustomSubclassRelease(id self, SEL _cmd)
 {
-    ValidateConcurrency(self, _cmd);
+    if (!ValidateConcurrency(self, _cmd) && [self retainCount] == 1) {
+        // About to be deallocated, and on the wrong queue!
+        // -dealloc sent on the wrong thread can be caused by an -autorelease being sent to an object causing it to live longer than it should
+        // In this situation, the stacktrace of the -dealloc isn't helpful, but the stacktrace of the last -autorelease will be.
+        NSString *autoreleaseStacktrace = objc_getAssociatedObject(self, ConcurrencyLastAutoreleaseBacktraceKey);
+        if (autoreleaseStacktrace) {
+            NSLog(@"Invalid last -release sent to managed object.  Last (invalid) autorelease stacktrace was: %@", autoreleaseStacktrace);
+        }
+    }
     Class superclass = GetRealSuperclass(self);
     IMP superRelease = class_getMethodImplementation(superclass, @selector(release));
     ((void (*)(id, SEL))superRelease)(self, _cmd);
@@ -235,7 +234,7 @@ static Class CreateCustomSubclass(Class class)
     Method willChangeValueForKey = class_getInstanceMethod(class, @selector(willChangeValueForKey:));
     Method willChangeValueForKeyWithSetMutationUsingObjects = class_getInstanceMethod(class, @selector(willChangeValueForKey:withSetMutation:usingObjects:));
     
-//    class_addMethod(subclass, @selector(release), (IMP)CustomSubclassRelease, method_getTypeEncoding(release));
+    class_addMethod(subclass, @selector(release), (IMP)CustomSubclassRelease, method_getTypeEncoding(release));
     class_addMethod(subclass, @selector(autorelease), (IMP)CustomSubclassAutorelease, method_getTypeEncoding(autorelease));
     class_addMethod(subclass, @selector(dealloc), (IMP)CustomSubclassDealloc, method_getTypeEncoding(dealloc));
     class_addMethod(subclass, @selector(willAccessValueForKey:), (IMP)CustomSubclassWillAccessValueForKey, method_getTypeEncoding(willAccessValueForKey));

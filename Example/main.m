@@ -64,6 +64,12 @@ void ConcurrencyFailure(SEL _cmd)
     NSLog(@"CoreData concurrency failure with selector: %@; stack: %@", NSStringFromSelector(_cmd), [NSThread callStackSymbols]);
 }
 
+// With optimisations turned off, the compiler will generate an autorelease method for this method
+NSManagedObject *IdentityFunction(NSManagedObject *object)
+{
+    return object;
+}
+
 
 int main(int argc, const char * argv[])
 {
@@ -72,16 +78,8 @@ int main(int argc, const char * argv[])
         GDCoreDataConcurrencyDebuggingSetFailureHandler(ConcurrencyFailure);
         // Create the managed object context
         NSManagedObjectContext *context1 = managedObjectContext();
-        //        id proxy = GDFastProxyForObject(context1);
         
         NSManagedObjectContext *context2 = managedObjectContext();
-        
-        [[NSNotificationCenter defaultCenter] addObserverForName:NSManagedObjectContextDidSaveNotification object:context1 queue:nil
-                                                      usingBlock:^(NSNotification *note) {
-                                                          [context2 performBlockAndWait:^{
-                                                              [context2 mergeChangesFromContextDidSaveNotification:note];
-                                                          }];
-                                                      }];
         
         NSEntityDescription *entity = [NSEntityDescription entityForName:@"Entity" inManagedObjectContext:context1];
         
@@ -92,54 +90,48 @@ int main(int argc, const char * argv[])
             [context1 save:NULL];
         }];
         
-        __block NSManagedObject *objectInContext2 = nil;
-        [context2 performBlockAndWait:^{
-            objectInContext2 = [context2 objectRegisteredForID:[objectInContext1 objectID]];
-        }];
-        
-        // Invalid access
-        NSString *name = objectInContext2.name;
+        // Here's an obvious invalid access
+        NSString *name = objectInContext1.name;
         NSLog(@"name: %@", name);
-        
-        [context1 performBlockAndWait:^{
-            [context1 deleteObject:objectInContext1];
-            [context1 save:NULL];
-        }];
         
         __block NSArray *results = nil;
         
-        [context2 performBlockAndWait:^{
-            
-            for (NSString *name in @[@"a", @"b", @"c"]) {
-                EntityWithCustomClass *object = [EntityWithCustomClass insertInManagedObjectContext:context2];
-                object.name = name;
-            }
-            
-            [context2 save:NULL];
-            
-            NSFetchRequest *fetchRequest = [NSFetchRequest new];
-            fetchRequest.entity = [EntityWithCustomClass entityInManagedObjectContext:context2];
-            NSArray *tempResults = [context2 executeFetchRequest:fetchRequest error:NULL];
-            
-            results = [[tempResults mutableCopy] copy]; // We can be sure that 'results' is not a magic CoreData NSArray
-        }];
+        @autoreleasepool {
+            [context2 performBlockAndWait:^{
+                
+                for (NSString *name in @[@"a", @"b", @"c"]) {
+                    EntityWithCustomClass *object = [EntityWithCustomClass insertInManagedObjectContext:context2];
+                    object.name = name;
+                }
+                
+                NSFetchRequest *fetchRequest = [NSFetchRequest new];
+                fetchRequest.entity = [EntityWithCustomClass entityInManagedObjectContext:context2];
+                fetchRequest.includesPendingChanges = YES;
+                NSArray *tempResults = [context2 executeFetchRequest:fetchRequest error:NULL];
+                
+                results = [[tempResults mutableCopy] copy]; // We can be sure that 'results' is not a magic CoreData NSArray
+            }];
+        }
 
         @autoreleasepool {
-            // This code happens to be safe...
+            // This code is safe because we are just calling -objectID
+            // But it's only safe as long as the context isn't reset (or deallocated) before the autorelease pool pops.
             NSMutableArray *objectIDs = [NSMutableArray new];
             for (EntityWithCustomClass *object in results) {
-                [objectIDs addObject:object.objectID];
+                [objectIDs addObject:IdentityFunction(object).objectID];
             }
         }
 
         @autoreleasepool {
-            // But this code isn't because 'object' is autoreleased and could be sent -release or -dealloc on the wrong thread.
+            // Here's an example of unsafe code
             NSMutableArray *objectIDs = [NSMutableArray new];
-            [results enumerateObjectsUsingBlock:^(EntityWithCustomClass *object, NSUInteger idx, BOOL *stop) {
-                [objectIDs addObject:object.objectID];
-            }];
-            
-            objectIDs = nil;
+            for (EntityWithCustomClass *object in results) {
+                [objectIDs addObject:IdentityFunction(object).objectID];
+            }
+            // This code is not safe because the autoreleased object's will be cleaned up after the context is reset.
+            // This is even worse if we interacted with the NSManagedObject's on a random dispatch queue, because they
+            // pop their autorelease pools at unspecified times.
+            results = nil;
             [context2 performBlockAndWait:^{
                 [context2 reset];
             }];
