@@ -27,11 +27,20 @@ If you use ARC, in debug builds you may see many invalid `-autorelease` messages
         [objectIDs addObject:[IdentityFunction(object) objectID]]; 
     }
 
-The compiler generates `-autorelease` calls in this situation (with optimisations turned off).  If you want to customise which messages are logged 'unsafe', you can call `GDCoreDataConcurrencyDebuggingSetFailureHandler` to set your own concurrency failure handler with function prototype `void ConcurrencyFailureHandler(SEL _cmd);`.
+The compiler generates `-autorelease` calls in this situation (with optimisations turned off).  If you want to customise which logging (for example to squash log messages about invalid `-autorelease` messages), you can call `GDCoreDataConcurrencyDebuggingSetFailureHandler` to set your own concurrency failure handler with function prototype `void ConcurrencyFailureHandler(SEL _cmd);`.  For example:
+
+    #import <GDCoreDataConcurrencyDebugging/GDCoreDataConcurrencyDebugging.h>
+    
+    static void CoreDataConcurrencyFailureHandler(SEL _cmd)
+    {
+        // Simply checking _cmd == @selector(autorelease) won't work in ARC code.
+        if (_cmd == NSSelectorFromString(@"autorelease")) return;
+        NSLog(@"CoreData concurrency failure: Selector '%@' called on wrong queue/thread.", NSStringFromSelector(_cmd));
+    }
 
 ## Usage
 
-To run the example project; clone the repo, and run `pod install` from the Project directory first.  The example demonstrates some invalid
+To run the example project; clone the repo, and run `pod install` from the Project directory first.  The example demonstrates some invalid CoreData code.  A particularly nasty case demonstrated is when an autorelease pool pops after the owning `NSManagedObjectContext` has been reset or dealloc'ed.
 
 ## Requirements
 
@@ -44,13 +53,13 @@ it simply add the following line to your Podfile:
 
     pod "GDCoreDataConcurrencyDebugging"
 
-If you're installing manually, be sure to not compile GDCoreDataConcurrencyDebugging with ARC (use the `-fno-objc-arc` flag).
+If you're installing manually, be sure to make sure ARC is turned off for the GDCoreDataConcurrencyDebugging sources (use the `-fno-objc-arc` flag).  GDCoreDataConcurrencyDebugging can be safely linked against ARC code.  See the Example.
 
 ## How does it work?
 
-GDCoreDataConcurrencyDebugging uses dynamic subclassing to create a custom `NSManagedObject` subclass which tracks access to instance variables and when they are modified.  Note that GDCoreDataConcurrencyDebugging does not check that CoreData faulting collections (for relationships) are accessed correctly after they have been retrieved from an NSObject.
+GDCoreDataConcurrencyDebugging uses dynamic subclassing to create a custom `NSManagedObject` subclass which tracks access to instance variables and when they are modified.  Note that GDCoreDataConcurrencyDebugging does not check that CoreData faulting collections (used for relationships) are accessed correctly after they have been retrieved from an NSManagedObject.
 
-GDCoreDataConcurrencyDebugging is based on code used in Mike Ash's [MAZeroingWeakRef] which uses dynamic subclassing to enable weak references to work on OS versions which don't natively support it.
+GDCoreDataConcurrencyDebugging is based on Mike Ash's dynamic subclassing code in [MAZeroingWeakRef].
 
 ## Author
 
