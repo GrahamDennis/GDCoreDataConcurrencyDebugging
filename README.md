@@ -13,27 +13,20 @@ For example the following code will trigger a console message:
         objectInContext1.name = @"test";
         [context1 save:NULL];
     }];
-
+    
     // Invalid access
-    NSString *name = objectInContext2.name;
+    NSString *name = objectInContext1.name;
     
 
-If you use ARC, in debug builds you may see many invalid `-autorelease` messages being sent by code which is otherwise valid.  For example:
-
-    // This code is safe even if not in a -performBlock...: method because only -objectID is being sent.
-    NSMutableArray *objectIDs = [NSMutableArray new];
-    for (NSManagedObject *object in results) {
-        // IdentityFunction simply returns object, but the compiler will generate -autorelease calls (at least with optimisations turned off)
-        [objectIDs addObject:[IdentityFunction(object) objectID]]; 
-    }
-
-The compiler generates `-autorelease` calls in this situation (with optimisations turned off).  If you want to customise which logging (for example to squash log messages about invalid `-autorelease` messages), you can call `GDCoreDataConcurrencyDebuggingSetFailureHandler` to set your own concurrency failure handler with function prototype `void ConcurrencyFailureHandler(SEL _cmd);`.  For example:
+If you want to customise the logging you can call `GDCoreDataConcurrencyDebuggingSetFailureHandler` to set your own concurrency failure handler with function prototype `void ConcurrencyFailureHandler(SEL _cmd);`.  For example:
 
     #import <GDCoreDataConcurrencyDebugging/GDCoreDataConcurrencyDebugging.h>
     
     static void CoreDataConcurrencyFailureHandler(SEL _cmd)
     {
         // Simply checking _cmd == @selector(autorelease) won't work in ARC code.
+        // You really shouldn't ignore -autorelease messages sent on the wrong thread,
+        // but if you want to live on the wild side...
         if (_cmd == NSSelectorFromString(@"autorelease")) return;
         NSLog(@"CoreData concurrency failure: Selector '%@' called on wrong queue/thread.", NSStringFromSelector(_cmd));
     }
@@ -42,6 +35,8 @@ The compiler generates `-autorelease` calls in this situation (with optimisation
     {
         GDCoreDataConcurrencyDebuggingSetFailureHandler(CoreDataConcurrencyFailureHandler);
     }
+
+See my [blog post][blog-post] for more information.
 
 ## Usage
 
@@ -78,3 +73,4 @@ GDCoreDataConcurrencyDebugging is available under the MIT license. See the LICEN
 
 
 [MAZeroingWeakRef]: https://github.com/mikeash/MAZeroingWeakRef
+[blog-post]: http://www.grahamdennis.me/blog/2013/09/09/debugging-concurrency-with-core-data/
