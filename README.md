@@ -37,6 +37,11 @@ The compiler generates `-autorelease` calls in this situation (with optimisation
         if (_cmd == NSSelectorFromString(@"autorelease")) return;
         NSLog(@"CoreData concurrency failure: Selector '%@' called on wrong queue/thread.", NSStringFromSelector(_cmd));
     }
+    
+    int main()
+    {
+        GDCoreDataConcurrencyDebuggingSetFailureHandler(CoreDataConcurrencyFailureHandler);
+    }
 
 ## Usage
 
