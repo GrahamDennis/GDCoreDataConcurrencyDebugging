@@ -147,6 +147,9 @@ static void *EnsureContextHasConcurrencyIdentifier(NSManagedObjectContext *conte
 static BOOL ValidateConcurrency(NSManagedObject *object, SEL _cmd)
 {
     void *desiredConcurrencyIdentifier = (void *)objc_getAssociatedObject(object, ConcurrencyIdentifierKey);
+    if(nil == desiredConcurrencyIdentifier) {
+        return YES;
+    }
     BOOL concurrencyValid = (CurrentConcurrencyIdentifierForManagedObject(object) == desiredConcurrencyIdentifier);
     if (!concurrencyValid) {
         if (GDConcurrencyFailureFunction) GDConcurrencyFailureFunction(_cmd);
