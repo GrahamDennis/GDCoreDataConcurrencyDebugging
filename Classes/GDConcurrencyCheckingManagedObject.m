@@ -95,6 +95,14 @@ static const void *ConcurrencyIdentifierKey = &ConcurrencyIdentifierKey;
 static const void *ConcurrencyTypeKey = &ConcurrencyTypeKey;
 static const void *ConcurrencyLastAutoreleaseBacktraceKey = &ConcurrencyLastAutoreleaseBacktraceKey;
 
+#define dispatch_current_queue() ({                                                    \
+      _Pragma("clang diagnostic push");                                                \
+      _Pragma("clang diagnostic ignored \"-Wdeprecated-declarations\"");               \
+      dispatch_queue_t queue = dispatch_get_current_queue(); \
+      _Pragma("clang diagnostic pop");                                                 \
+      queue;                                                                           \
+    })
+
 static void *CurrentConcurrencyIdentifierForManagedObject(NSManagedObject *object)
 {
     NSCParameterAssert(object);
@@ -106,9 +114,9 @@ static void *CurrentConcurrencyIdentifierForManagedObject(NSManagedObject *objec
         return pthread_self();
 #ifdef COREDATA_CONCURRENCY_AVAILABLE
     } else if (concurrencyType == NSMainQueueConcurrencyType) {
-        return dispatch_get_current_queue();
+        return dispatch_current_queue();
     } else if (concurrencyType == NSPrivateQueueConcurrencyType) {
-        return dispatch_get_current_queue();
+        return dispatch_current_queue();
     } else {
         NSCAssert(NO, @"Unknown concurrency type %i", (int)concurrencyType);
         return NULL;
@@ -133,7 +141,7 @@ static void *EnsureContextHasConcurrencyIdentifier(NSManagedObjectContext *conte
         // Note that nested -performBlockAndWait calls are safe.
         __block void *tempConcurrencyIdentifier = NULL;
         [context performBlockAndWait:^{
-            tempConcurrencyIdentifier = dispatch_get_current_queue();
+            tempConcurrencyIdentifier = dispatch_current_queue();
         }];
         concurrencyIdentifier = tempConcurrencyIdentifier;
     } else {
