@@ -103,23 +103,25 @@ static const void *ConcurrencyLastAutoreleaseBacktraceKey = &ConcurrencyLastAuto
       queue;                                                                           \
     })
 
-static void *CurrentConcurrencyIdentifierForManagedObject(NSManagedObject *object)
+static BOOL ValidateConcurrencyForManagedObjectWithExpectedIdentifier(NSManagedObject *object, void *expectedConcurrencyIdentifier)
 {
     NSCParameterAssert(object);
+    NSCParameterAssert(expectedConcurrencyIdentifier);
     
 #ifdef COREDATA_CONCURRENCY_AVAILABLE
     NSManagedObjectContextConcurrencyType concurrencyType = (NSManagedObjectContextConcurrencyType)objc_getAssociatedObject(object, ConcurrencyTypeKey);
     if (concurrencyType == NSConfinementConcurrencyType) {
 #endif
-        return pthread_self();
+        return pthread_self() == expectedConcurrencyIdentifier;
 #ifdef COREDATA_CONCURRENCY_AVAILABLE
-    } else if (concurrencyType == NSMainQueueConcurrencyType) {
-        return dispatch_current_queue();
-    } else if (concurrencyType == NSPrivateQueueConcurrencyType) {
-        return dispatch_current_queue();
+    } else if (concurrencyType == NSMainQueueConcurrencyType ||
+               concurrencyType == NSPrivateQueueConcurrencyType) {
+        dispatch_queue_t current_queue = dispatch_current_queue();
+        void *context = dispatch_queue_get_specific(current_queue, expectedConcurrencyIdentifier);
+        return context != NULL;
     } else {
         NSCAssert(NO, @"Unknown concurrency type %i", (int)concurrencyType);
-        return NULL;
+        return NO;
     }
 #endif
 }
@@ -134,16 +136,26 @@ static void *EnsureContextHasConcurrencyIdentifier(NSManagedObjectContext *conte
 #endif
         concurrencyIdentifier = pthread_self();
 #ifdef COREDATA_CONCURRENCY_AVAILABLE
-    } else if (context.concurrencyType == NSMainQueueConcurrencyType) {
-        concurrencyIdentifier = dispatch_get_main_queue();
-    } else if (context.concurrencyType == NSPrivateQueueConcurrencyType) {
-        // Get the context queue by running a block on it
-        // Note that nested -performBlockAndWait calls are safe.
-        __block void *tempConcurrencyIdentifier = NULL;
-        [context performBlockAndWait:^{
-            tempConcurrencyIdentifier = dispatch_current_queue();
-        }];
-        concurrencyIdentifier = tempConcurrencyIdentifier;
+    } else if (context.concurrencyType == NSMainQueueConcurrencyType
+               || context.concurrencyType == NSPrivateQueueConcurrencyType) {
+        __block dispatch_queue_t confinementQueue = NULL;
+        if (context.concurrencyType == NSMainQueueConcurrencyType)
+            confinementQueue = dispatch_get_main_queue();
+        else {
+            // Get the context queue by running a block on it
+            // Note that nested -performBlockAndWait calls are safe.
+            [context performBlockAndWait:^{
+                confinementQueue = dispatch_current_queue();
+            }];
+        }
+        
+        if (confinementQueue) {
+            // We set the queue as a key-value pair associated with itself so we can identify whether
+            // we are running on this queue even when we are nested in another queue.
+            dispatch_queue_set_specific(confinementQueue, confinementQueue, confinementQueue, NULL);
+        }
+        
+        concurrencyIdentifier = confinementQueue;
     } else {
         NSCParameterAssert(NO);
     }
@@ -158,7 +170,7 @@ static BOOL ValidateConcurrency(NSManagedObject *object, SEL _cmd)
     if(nil == desiredConcurrencyIdentifier) {
         return YES;
     }
-    BOOL concurrencyValid = (CurrentConcurrencyIdentifierForManagedObject(object) == desiredConcurrencyIdentifier);
+    BOOL concurrencyValid = ValidateConcurrencyForManagedObjectWithExpectedIdentifier(object, desiredConcurrencyIdentifier);
     if (!concurrencyValid) {
         if (GDConcurrencyFailureFunction) GDConcurrencyFailureFunction(_cmd);
         else {

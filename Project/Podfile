@@ -1,2 +1,3 @@
 pod "GDCoreDataConcurrencyDebugging", :path => "../"
 
+link_with ['Example', 'Tests']
