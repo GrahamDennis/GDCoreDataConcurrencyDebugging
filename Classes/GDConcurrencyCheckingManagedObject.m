@@ -126,10 +126,15 @@ static BOOL ValidateConcurrencyForManagedObjectWithExpectedIdentifier(NSManagedO
 #endif
 }
 
-static void *EnsureContextHasConcurrencyIdentifier(NSManagedObjectContext *context)
+static void *GetConcurrencyIdentifierForContext(NSManagedObjectContext *context)
 {
-    void *concurrencyIdentifier = objc_getAssociatedObject(context, ConcurrencyIdentifierKey);
-    if (concurrencyIdentifier) return concurrencyIdentifier;
+    return objc_getAssociatedObject(context, ConcurrencyIdentifierKey);
+}
+
+static void SetConcurrencyIdentifierForContext(NSManagedObjectContext *context)
+{
+    void *concurrencyIdentifier = GetConcurrencyIdentifierForContext(context);
+    if (concurrencyIdentifier) return;
     
 #ifdef COREDATA_CONCURRENCY_AVAILABLE
     if (context.concurrencyType == NSConfinementConcurrencyType) {
@@ -161,7 +166,6 @@ static void *EnsureContextHasConcurrencyIdentifier(NSManagedObjectContext *conte
     }
 #endif
     objc_setAssociatedObject(context, ConcurrencyIdentifierKey, concurrencyIdentifier, OBJC_ASSOCIATION_ASSIGN);
-    return concurrencyIdentifier;
 }
 
 static BOOL ValidateConcurrency(NSManagedObject *object, SEL _cmd)
@@ -279,7 +283,20 @@ static void RegisterCustomSubclass(Class subclass, Class superclass)
 
 @interface NSManagedObject (GDCoreDataConcurrencyChecking)
 
+- (id)gd_initWithEntity:(NSEntityDescription *)entity insertIntoManagedObjectContext:(NSManagedObjectContext *)context;
+
 @end
+
+@interface NSManagedObjectContext (GDCoreDataConcurrencyChecking)
+
+#ifdef COREDATA_CONCURRENCY_AVAILABLE
+- (id)gd_initWithConcurrencyType:(NSManagedObjectContextConcurrencyType)type;
+#else
+- (id)gd_init;
+#endif
+
+@end
+
 
 @implementation NSManagedObject (GDCoreDataConcurrencyChecking)
 
@@ -298,21 +315,45 @@ static void RegisterCustomSubclass(Class subclass, Class superclass)
     if (![self jr_swizzleMethod:@selector(initWithEntity:insertIntoManagedObjectContext:) withMethod:@selector(gd_initWithEntity:insertIntoManagedObjectContext:) error:&error]) {
         NSLog(@"Failed to swizzle with error: %@", error);
     }
+#ifdef COREDATA_CONCURRENCY_AVAILABLE
+    if (![NSManagedObjectContext jr_swizzleMethod:@selector(initWithConcurrencyType:) withMethod:@selector(gd_initWithConcurrencyType:) error:&error]) {
+#else
+    if (![NSManagedObjectContext jr_swizzleMethod:@selector(init) withMethod:@selector(gd_init) error:&error]) {
+#endif
+        NSLog(@"Failed to swizzle with error: %@", error);
+    }
 }
 
 - (id)gd_initWithEntity:(NSEntityDescription *)entity insertIntoManagedObjectContext:(NSManagedObjectContext *)context
 {
     self = [self gd_initWithEntity:entity insertIntoManagedObjectContext:context];
-    if (context)
-    {
-        void *concurrencyIdentifier = EnsureContextHasConcurrencyIdentifier(context);
-        objc_setAssociatedObject(self, ConcurrencyIdentifierKey, concurrencyIdentifier, OBJC_ASSOCIATION_ASSIGN);
+    if (context) {
+        // Assign expected concurrency identifier
+        objc_setAssociatedObject(self, ConcurrencyIdentifierKey, GetConcurrencyIdentifierForContext(context), OBJC_ASSOCIATION_ASSIGN);
 #ifdef COREDATA_CONCURRENCY_AVAILABLE
+        // Assign concurrency type in case the context is released before this object is.
         objc_setAssociatedObject(self, ConcurrencyTypeKey, (void *)context.concurrencyType, OBJC_ASSOCIATION_ASSIGN);
 #endif
     }
     return self;
 }
 
+@end
+
+@implementation NSManagedObjectContext (GDCoreDataConcurrencyChecking)
+
+#ifdef COREDATA_CONCURRENCY_AVAILABLE
+- (id)gd_initWithConcurrencyType:(NSManagedObjectContextConcurrencyType)type
+{
+    self = [self gd_initWithConcurrencyType:type];
+#else
+- (id)gd_init
+{
+    self = [self gd_init];
+#endif
+    SetConcurrencyIdentifierForContext(self);
+
+    return self;
+}
 
 @end
