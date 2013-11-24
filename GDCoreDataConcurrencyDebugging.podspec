@@ -1,6 +1,6 @@
 Pod::Spec.new do |s|
   s.name         = "GDCoreDataConcurrencyDebugging"
-  s.version      = "0.0.3"
+  s.version      = "0.0.4"
   s.summary      = "Find out when you're accessing an NSManagedObject on the wrong queue/thread."
   s.description  = <<-DESC
     
