@@ -149,6 +149,73 @@ int main(int argc, const char * argv[])
             }
         }];
         
+        {
+            NSManagedObjectContext *mainQueueContext = [[NSManagedObjectContext alloc] initWithConcurrencyType:NSMainQueueConcurrencyType];
+            
+            NSPersistentStoreCoordinator *coordinator = [[NSPersistentStoreCoordinator alloc] initWithManagedObjectModel:managedObjectModel()];
+            [mainQueueContext setPersistentStoreCoordinator:coordinator];
+            
+            NSString *STORE_TYPE = NSSQLiteStoreType;
+            
+            NSString *path = [[NSProcessInfo processInfo] arguments][0];
+            path = [path stringByDeletingPathExtension];
+            NSURL *url = [NSURL fileURLWithPath:[path stringByAppendingPathExtension:@"sqlite"]];
+            
+            NSError *error;
+            NSPersistentStore *newStore = [coordinator addPersistentStoreWithType:STORE_TYPE configuration:nil URL:url options:nil error:&error];
+            
+            if (newStore == nil) {
+                NSLog(@"Store Configuration Failure %@", ([error localizedDescription] != nil) ? [error localizedDescription] : @"Unknown Error");
+            }
+            
+            NSFetchRequest *fetchRequest = [NSFetchRequest new];
+            fetchRequest.entity = [EntityWithCustomClass entityInManagedObjectContext:mainQueueContext];
+            fetchRequest.includesPendingChanges = YES;
+            NSArray *tempResults = [mainQueueContext executeFetchRequest:fetchRequest error:NULL];
+            
+            for (EntityWithCustomClass *o in tempResults) {
+                [o willAccessValueForKey:nil];
+            }
+            
+            results = [[tempResults mutableCopy] copy]; // We can be sure that 'results' is not a magic CoreData NSArray
+            results = nil;
+        }
+
+        {
+            dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+                NSManagedObjectContext *context = [[NSManagedObjectContext alloc] initWithConcurrencyType:NSConfinementConcurrencyType];
+                
+                NSPersistentStoreCoordinator *coordinator = [[NSPersistentStoreCoordinator alloc] initWithManagedObjectModel:managedObjectModel()];
+                [context setPersistentStoreCoordinator:coordinator];
+                
+                NSString *STORE_TYPE = NSSQLiteStoreType;
+                
+                NSString *path = [[NSProcessInfo processInfo] arguments][0];
+                path = [path stringByDeletingPathExtension];
+                NSURL *url = [NSURL fileURLWithPath:[path stringByAppendingPathExtension:@"sqlite"]];
+                
+                NSError *error;
+                NSPersistentStore *newStore = [coordinator addPersistentStoreWithType:STORE_TYPE configuration:nil URL:url options:nil error:&error];
+                
+                if (newStore == nil) {
+                    NSLog(@"Store Configuration Failure %@", ([error localizedDescription] != nil) ? [error localizedDescription] : @"Unknown Error");
+                }
+                
+                NSFetchRequest *fetchRequest = [NSFetchRequest new];
+                fetchRequest.entity = [EntityWithCustomClass entityInManagedObjectContext:context];
+                fetchRequest.includesPendingChanges = YES;
+                NSArray *tempResults = [context executeFetchRequest:fetchRequest error:NULL];
+                
+                for (EntityWithCustomClass *o in tempResults) {
+                    [o willAccessValueForKey:nil];
+                }
+                
+                results = [[tempResults mutableCopy] copy]; // We can be sure that 'results' is not a magic CoreData NSArray
+            });
+            
+        }
+
+        
         [[NSRunLoop mainRunLoop] run];
     }
     return 0;
