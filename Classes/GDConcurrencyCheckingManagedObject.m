@@ -213,14 +213,6 @@ static id CustomSubclassAutorelease(id self, SEL _cmd)
     return ((id (*)(id, SEL))superAutorelease)(self, _cmd);
 }
 
-static void CustomSubclassDealloc(id self, SEL _cmd)
-{
-    ValidateConcurrency(self, _cmd);
-    Class superclass = GetRealSuperclass(self);
-    IMP superDealloc = class_getMethodImplementation(superclass, @selector(dealloc));
-    ((void (*)(id, SEL))superDealloc)(self, _cmd);
-}
-
 static void CustomSubclassWillAccessValueForKey(id self, SEL _cmd, NSString *key)
 {
     ValidateConcurrency(self, _cmd);
@@ -256,17 +248,16 @@ static Class CreateCustomSubclass(Class class)
     
     Method release = class_getInstanceMethod(class, @selector(release));
     Method autorelease = class_getInstanceMethod(class, @selector(autorelease));
-//    Method dealloc = class_getInstanceMethod(class, @selector(dealloc));
     Method willAccessValueForKey = class_getInstanceMethod(class, @selector(willAccessValueForKey:));
     Method willChangeValueForKey = class_getInstanceMethod(class, @selector(willChangeValueForKey:));
     Method willChangeValueForKeyWithSetMutationUsingObjects = class_getInstanceMethod(class, @selector(willChangeValueForKey:withSetMutation:usingObjects:));
     
-    class_addMethod(subclass, @selector(release), (IMP)CustomSubclassRelease, method_getTypeEncoding(release));
-    class_addMethod(subclass, @selector(autorelease), (IMP)CustomSubclassAutorelease, method_getTypeEncoding(autorelease));
     // We do not override dealloc because if a context has more than 300 objects it has references to, the objects will be deallocated on a background queue
     // This would normally be considered unsafe access, but as its Core Data doing this, we must assume it to be safe.
     // We shouldn't get miss any unsafe concurrency because in normal circumstances, -release will be called on the objects, which itself would trigger deallocation.
-//    class_addMethod(subclass, @selector(dealloc), (IMP)CustomSubclassDealloc, method_getTypeEncoding(dealloc));
+    
+    class_addMethod(subclass, @selector(release), (IMP)CustomSubclassRelease, method_getTypeEncoding(release));
+    class_addMethod(subclass, @selector(autorelease), (IMP)CustomSubclassAutorelease, method_getTypeEncoding(autorelease));
     class_addMethod(subclass, @selector(willAccessValueForKey:), (IMP)CustomSubclassWillAccessValueForKey, method_getTypeEncoding(willAccessValueForKey));
     class_addMethod(subclass, @selector(willChangeValueForKey:), (IMP)CustomSubclassWillChangeValueForKey, method_getTypeEncoding(willChangeValueForKey));
     class_addMethod(subclass, @selector(willChangeValueForKey:withSetMutation:usingObjects:), (IMP)CustomSubclassWillChangeValueForKeyWithSetMutationUsingObjects, method_getTypeEncoding(willChangeValueForKeyWithSetMutationUsingObjects));
