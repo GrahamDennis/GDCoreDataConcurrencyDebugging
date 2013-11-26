@@ -114,9 +114,11 @@ static BOOL ValidateConcurrencyForManagedObjectWithExpectedIdentifier(NSManagedO
 #endif
         return pthread_self() == expectedConcurrencyIdentifier;
 #ifdef COREDATA_CONCURRENCY_AVAILABLE
-    } else if (concurrencyType == NSMainQueueConcurrencyType ||
-               concurrencyType == NSPrivateQueueConcurrencyType) {
+    } else if (concurrencyType == NSMainQueueConcurrencyType) {
+        return [NSThread isMainThread];
+    } else if (concurrencyType == NSPrivateQueueConcurrencyType) {
         dispatch_queue_t current_queue = dispatch_current_queue();
+        if (current_queue == expectedConcurrencyIdentifier) return YES;
         void *context = dispatch_queue_get_specific(current_queue, expectedConcurrencyIdentifier);
         return context != NULL;
     } else {
