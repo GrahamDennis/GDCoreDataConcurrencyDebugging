@@ -293,6 +293,7 @@ struct DispatchWrapperState {
     void *context;
     void (*function)(void *);
     NSMutableArray *concurrencyIdentifiers;
+    dispatch_block_t block;
 };
 
 static void DispatchTargetFunctionWrapper(void *context)
@@ -306,7 +307,10 @@ static void DispatchTargetFunctionWrapper(void *context)
     
     [threadDictionary setObject:state->concurrencyIdentifiers forKey:ConcurrencyIdentifiersThreadDictionaryKey];
     
-    state->function(state->context);
+    if (state->function)
+        state->function(state->context);
+    else
+        state->block();
     
     // Restore the old concurrency identifier array, if there was one.
     if (oldConcurrencyIdentifiers)
@@ -315,7 +319,7 @@ static void DispatchTargetFunctionWrapper(void *context)
         [threadDictionary removeObjectForKey:ConcurrencyIdentifiersThreadDictionaryKey];
 }
 
-static void DispatchSyncWrapper(dispatch_queue_t queue, void *context, void (*function)(void *), void (*dispatch_call)(dispatch_queue_t, void*, void (*)(void *)))
+static void DispatchSyncWrapper(dispatch_queue_t queue, void *context, void (*function)(void *), dispatch_block_t block, void *dispatch_call)
 {
     // Create or obtain an array of valid concurrency identifiers for the callee block
     // This list of concurrency identifiers is basically a stack of the current set of queues that we are logically synchronously executing on,
@@ -327,48 +331,81 @@ static void DispatchSyncWrapper(dispatch_queue_t queue, void *context, void (*fu
     }
     [concurrencyIdentifiers addObject:[NSValue valueWithPointer:dispatch_current_queue()]];
     
-    struct DispatchWrapperState state = {context, function, concurrencyIdentifiers};
+    struct DispatchWrapperState state = {context, function, concurrencyIdentifiers, block};
     
     // Passing the stack frame is OK because this is a sync function call
-    return dispatch_call(queue, &state, DispatchTargetFunctionWrapper);
+    if (function) {
+        ((void (*)(dispatch_queue_t, void*, void (*)(void *)))dispatch_call)(queue, &state, DispatchTargetFunctionWrapper);
+    } else {
+        ((void (*)(dispatch_queue_t, dispatch_block_t))dispatch_call)(queue, ^{
+            DispatchTargetFunctionWrapper((void *)&state);
+        });
+    }
 }
 
 #define DISPATCH_WRAPPER(dispatch_function)                                                                     \
 static void (*original_ ## dispatch_function) (dispatch_queue_t, void *, void (*)(void *));                     \
 static void wrapper_ ## dispatch_function (dispatch_queue_t queue, void *context, void (*function)(void *))     \
 {                                                                                                               \
-    DispatchSyncWrapper(queue, context, function, original_ ## dispatch_function);                              \
+    DispatchSyncWrapper(queue, context, function, nil, original_ ## dispatch_function);                         \
+}
+
+#define DISPATCH_BLOCK_WRAPPER(dispatch_function)                                                               \
+static void (*original_ ## dispatch_function) (dispatch_queue_t, dispatch_block_t);                             \
+static void wrapper_ ## dispatch_function (dispatch_queue_t queue, dispatch_block_t block)                      \
+{                                                                                                               \
+    DispatchSyncWrapper(queue, NULL, NULL, block, original_ ## dispatch_function);                              \
 }
 
 DISPATCH_WRAPPER(dispatch_sync_f);
-DISPATCH_WRAPPER(dispatch_barrier_sync_f)
+DISPATCH_WRAPPER(dispatch_barrier_sync_f);
+DISPATCH_BLOCK_WRAPPER(dispatch_sync);
+DISPATCH_BLOCK_WRAPPER(dispatch_barrier_sync);
+
+static void GDCoreDataConcurrencyDebuggingInitialise()
+{
+    static dispatch_once_t onceToken;
+    dispatch_once(&onceToken, ^{
+        // Instrument dispatch_sync calls to keep track of the stack of synchronous queues.
+        {
+            ConcurrencyIdentifiersThreadDictionaryKey = [[NSValue valueWithPointer:&ConcurrencyIdentifiersThreadDictionaryKey] retain];
+            
+            Dl_info info;
+            
+            original_dispatch_sync_f = dispatch_sync_f;
+            original_dispatch_barrier_sync_f = dispatch_barrier_sync_f;
+            original_dispatch_sync = dispatch_sync;
+            original_dispatch_barrier_sync = dispatch_barrier_sync;
+            
+            dladdr(original_dispatch_sync_f, &info);
+            
+            struct rebinding rebindings[] = {
+                {"dispatch_sync_f", wrapper_dispatch_sync_f, info.dli_fname},
+                {"dispatch_barrier_sync_f", wrapper_dispatch_barrier_sync_f, info.dli_fname},
+                {"dispatch_sync", wrapper_dispatch_sync, info.dli_fname},
+                {"dispatch_barrier_sync", wrapper_dispatch_barrier_sync, info.dli_fname}
+            };
+            
+            rebind_symbols(rebindings, sizeof(rebindings)/sizeof(struct rebinding));
+        }
+        
+        // Locks for the custom subclasses
+        pthread_mutexattr_t mutexattr;
+        pthread_mutexattr_init(&mutexattr);
+        pthread_mutexattr_settype(&mutexattr, PTHREAD_MUTEX_RECURSIVE);
+        pthread_mutex_init(&gMutex, &mutexattr);
+        pthread_mutexattr_destroy(&mutexattr);
+        
+        gCustomSubclasses = [NSMutableSet new];
+        gCustomSubclassMap = [NSMutableDictionary new];
+
+    });
+}
 
 @implementation NSManagedObject (GDCoreDataConcurrencyChecking)
 
 + (void)load
 {
-    // Instrument dispatch_sync calls to keep track of the stack of synchronous queues.
-    {
-        ConcurrencyIdentifiersThreadDictionaryKey = [[NSValue valueWithPointer:&ConcurrencyIdentifiersThreadDictionaryKey] retain];
-        
-        original_dispatch_sync_f            = dlsym(RTLD_DEFAULT, "dispatch_sync_f");
-        original_dispatch_barrier_sync_f    = dlsym(RTLD_DEFAULT, "dispatch_barrier_sync_f");
-        struct rebinding rebindings[] = {{"dispatch_sync_f", wrapper_dispatch_sync_f}, {"dispatch_barrier_sync_f", wrapper_dispatch_barrier_sync_f}};
-        
-        rebind_symbols(rebindings, sizeof(rebindings)/sizeof(struct rebinding));
-    }
-    
-    // Locks for the custom subclasses
-    pthread_mutexattr_t mutexattr;
-    pthread_mutexattr_init(&mutexattr);
-    pthread_mutexattr_settype(&mutexattr, PTHREAD_MUTEX_RECURSIVE);
-    pthread_mutex_init(&gMutex, &mutexattr);
-    pthread_mutexattr_destroy(&mutexattr);
-    
-    gCustomSubclasses = [NSMutableSet new];
-    gCustomSubclassMap = [NSMutableDictionary new];
-
-    
     // Swizzle some methods so we can set up when a MOC or managed object is created.
     NSError *error = nil;
     if (![self jr_swizzleMethod:@selector(initWithEntity:insertIntoManagedObjectContext:) withMethod:@selector(gd_initWithEntity:insertIntoManagedObjectContext:) error:&error]) {
@@ -386,6 +423,9 @@ DISPATCH_WRAPPER(dispatch_barrier_sync_f)
 - (id)gd_initWithEntity:(NSEntityDescription *)entity insertIntoManagedObjectContext:(NSManagedObjectContext *)context
 {
     self = [self gd_initWithEntity:entity insertIntoManagedObjectContext:context];
+
+    GDCoreDataConcurrencyDebuggingInitialise();
+    
     if (context) {
         // Assign expected concurrency identifier
         objc_setAssociatedObject(self, ConcurrencyIdentifierKey, GetConcurrencyIdentifierForContext(context), OBJC_ASSOCIATION_ASSIGN);
@@ -411,6 +451,8 @@ DISPATCH_WRAPPER(dispatch_barrier_sync_f)
     self = [self gd_init];
 #endif
     
+    GDCoreDataConcurrencyDebuggingInitialise();
+
     SetConcurrencyIdentifierForContext(self);
 
     return self;
