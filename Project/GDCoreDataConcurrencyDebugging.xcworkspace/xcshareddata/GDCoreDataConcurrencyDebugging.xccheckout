@@ -10,6 +10,8 @@
 	<string>GDCoreDataConcurrencyDebugging</string>
 	<key>IDESourceControlProjectOriginsDictionary</key>
 	<dict>
+		<key>42D41597-6F88-4494-A2AA-BD8F4C9ED9DA</key>
+		<string>https://github.com/facebook/fishhook.git</string>
 		<key>9CF735EF-38C6-40B5-885E-51E6F9E2ABA0</key>
 		<string>ssh://github.com/GrahamDennis/GDCoreDataConcurrencyDebugging.git</string>
 	</dict>
@@ -17,6 +19,8 @@
 	<string>Project/GDCoreDataConcurrencyDebugging.xcworkspace</string>
 	<key>IDESourceControlProjectRelativeInstallPathDictionary</key>
 	<dict>
+		<key>42D41597-6F88-4494-A2AA-BD8F4C9ED9DA</key>
+		<string>../../Vendor/fishhook</string>
 		<key>9CF735EF-38C6-40B5-885E-51E6F9E2ABA0</key>
 		<string>../..</string>
 	</dict>
@@ -28,6 +32,14 @@
 	<string>9CF735EF-38C6-40B5-885E-51E6F9E2ABA0</string>
 	<key>IDESourceControlProjectWCConfigurations</key>
 	<array>
+		<dict>
+			<key>IDESourceControlRepositoryExtensionIdentifierKey</key>
+			<string>public.vcs.git</string>
+			<key>IDESourceControlWCCIdentifierKey</key>
+			<string>42D41597-6F88-4494-A2AA-BD8F4C9ED9DA</string>
+			<key>IDESourceControlWCCName</key>
+			<string>fishhook</string>
+		</dict>
 		<dict>
 			<key>IDESourceControlRepositoryExtensionIdentifierKey</key>
 			<string>public.vcs.git</string>

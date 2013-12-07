@@ -11,13 +11,17 @@ Pod::Spec.new do |s|
   s.homepage     = "https://github.com/GrahamDennis/GDCoreDataConcurrencyDebugging"
   s.license      = 'MIT'
   s.author       = { "Graham Dennis" => "graham@grahamdennis.me" }
-  s.source       = { :git => "https://github.com/GrahamDennis/GDCoreDataConcurrencyDebugging.git", :tag => s.version.to_s }
+  s.source       = {
+     :git => "https://github.com/GrahamDennis/GDCoreDataConcurrencyDebugging.git", 
+     :tag => s.version.to_s,
+     :submodules => true
+   }
 
   s.ios.deployment_target = "3.1"
   s.osx.deployment_target = "10.6"
   s.requires_arc = false
 
-  s.source_files = 'Classes'
+  s.source_files = ['Classes', 'Vendor/fishhook/fishhook.{c,h}']
 
   s.public_header_files = 'Classes/{GDCoreDataConcurrencyDebugging,GDConcurrencyCheckingManagedObject}.h'
   s.frameworks = 'CoreData'

@@ -30,8 +30,11 @@
 #import <CoreData/CoreData.h>
 #import <pthread.h>
 #import <objc/runtime.h>
+#import <dlfcn.h>
 
 #import <JRSwizzle/JRSwizzle.h>
+
+#import "fishhook.h"
 
 static pthread_mutex_t gMutex;
 static NSMutableSet *gCustomSubclasses;
@@ -94,6 +97,7 @@ static Class GetRealSuperclass(id obj)
 static const void *ConcurrencyIdentifierKey = &ConcurrencyIdentifierKey;
 static const void *ConcurrencyTypeKey = &ConcurrencyTypeKey;
 static const void *ConcurrencyLastAutoreleaseBacktraceKey = &ConcurrencyLastAutoreleaseBacktraceKey;
+static NSValue *ConcurrencyIdentifiersThreadDictionaryKey = nil;
 
 #define dispatch_current_queue() ({                                                    \
       _Pragma("clang diagnostic push");                                                \
@@ -114,16 +118,13 @@ static BOOL ValidateConcurrencyForManagedObjectWithExpectedIdentifier(NSManagedO
 #endif
         return pthread_self() == expectedConcurrencyIdentifier;
 #ifdef COREDATA_CONCURRENCY_AVAILABLE
-    } else if (concurrencyType == NSMainQueueConcurrencyType) {
-        return [NSThread isMainThread];
-    } else if (concurrencyType == NSPrivateQueueConcurrencyType) {
+    } else if (concurrencyType == NSMainQueueConcurrencyType && [NSThread isMainThread]) {
+        return YES;
+    } else {
         dispatch_queue_t current_queue = dispatch_current_queue();
         if (current_queue == expectedConcurrencyIdentifier) return YES;
-        void *context = dispatch_queue_get_specific(current_queue, expectedConcurrencyIdentifier);
-        return context != NULL;
-    } else {
-        NSCAssert(NO, @"Unknown concurrency type %i", (int)concurrencyType);
-        return NO;
+        NSArray *concurrencyIdentifiers = [[[NSThread currentThread] threadDictionary] objectForKey:ConcurrencyIdentifiersThreadDictionaryKey];
+        return [concurrencyIdentifiers containsObject:[NSValue valueWithPointer:expectedConcurrencyIdentifier]];
     }
 #endif
 }
@@ -154,12 +155,6 @@ static void SetConcurrencyIdentifierForContext(NSManagedObjectContext *context)
             [context performBlockAndWait:^{
                 confinementQueue = dispatch_current_queue();
             }];
-        }
-        
-        if (confinementQueue) {
-            // We set the queue as a key-value pair associated with itself so we can identify whether
-            // we are running on this queue even when we are nested in another queue.
-            dispatch_queue_set_specific(confinementQueue, confinementQueue, confinementQueue, NULL);
         }
         
         concurrencyIdentifier = confinementQueue;
@@ -294,10 +289,76 @@ static void RegisterCustomSubclass(Class subclass, Class superclass)
 @end
 
 
+struct DispatchWrapperState {
+    void *context;
+    void (*function)(void *);
+    NSMutableArray *concurrencyIdentifiers;
+};
+
+static void DispatchTargetFunctionWrapper(void *context)
+{
+    struct DispatchWrapperState *state = (struct DispatchWrapperState *)context;
+    
+    NSMutableDictionary *threadDictionary = [[NSThread currentThread] threadDictionary];
+    
+    // Save the old concurrency identifier array, if there was one.
+    id oldConcurrencyIdentifiers = [threadDictionary objectForKey:ConcurrencyIdentifiersThreadDictionaryKey];
+    
+    [threadDictionary setObject:state->concurrencyIdentifiers forKey:ConcurrencyIdentifiersThreadDictionaryKey];
+    
+    state->function(state->context);
+    
+    // Restore the old concurrency identifier array, if there was one.
+    if (oldConcurrencyIdentifiers)
+        [threadDictionary setObject:oldConcurrencyIdentifiers forKey:ConcurrencyIdentifiersThreadDictionaryKey];
+    else
+        [threadDictionary removeObjectForKey:ConcurrencyIdentifiersThreadDictionaryKey];
+}
+
+static void DispatchSyncWrapper(dispatch_queue_t queue, void *context, void (*function)(void *), void (*dispatch_call)(dispatch_queue_t, void*, void (*)(void *)))
+{
+    // Create or obtain an array of valid concurrency identifiers for the callee block
+    // This list of concurrency identifiers is basically a stack of the current set of queues that we are logically synchronously executing on,
+    // even if we aren't executing on that thread.  For example, if we dispatch_sync from a background queue to the main queue, the two queues will
+    // presently be running on different threads, but the block on the main queue is essentially operating on the background queue too.
+    NSMutableArray *concurrencyIdentifiers = [[[NSThread currentThread] threadDictionary] objectForKey:ConcurrencyIdentifiersThreadDictionaryKey];
+    if (!concurrencyIdentifiers) {
+        concurrencyIdentifiers = [NSMutableArray array];
+    }
+    [concurrencyIdentifiers addObject:[NSValue valueWithPointer:dispatch_current_queue()]];
+    
+    struct DispatchWrapperState state = {context, function, concurrencyIdentifiers};
+    
+    // Passing the stack frame is OK because this is a sync function call
+    return dispatch_call(queue, &state, DispatchTargetFunctionWrapper);
+}
+
+#define DISPATCH_WRAPPER(dispatch_function)                                                                     \
+static void (*original_ ## dispatch_function) (dispatch_queue_t, void *, void (*)(void *));                     \
+static void wrapper_ ## dispatch_function (dispatch_queue_t queue, void *context, void (*function)(void *))     \
+{                                                                                                               \
+    DispatchSyncWrapper(queue, context, function, original_ ## dispatch_function);                              \
+}
+
+DISPATCH_WRAPPER(dispatch_sync_f);
+DISPATCH_WRAPPER(dispatch_barrier_sync_f)
+
 @implementation NSManagedObject (GDCoreDataConcurrencyChecking)
 
 + (void)load
 {
+    // Instrument dispatch_sync calls to keep track of the stack of synchronous queues.
+    {
+        ConcurrencyIdentifiersThreadDictionaryKey = [[NSValue valueWithPointer:&ConcurrencyIdentifiersThreadDictionaryKey] retain];
+        
+        original_dispatch_sync_f            = dlsym(RTLD_DEFAULT, "dispatch_sync_f");
+        original_dispatch_barrier_sync_f    = dlsym(RTLD_DEFAULT, "dispatch_barrier_sync_f");
+        struct rebinding rebindings[] = {{"dispatch_sync_f", wrapper_dispatch_sync_f}, {"dispatch_barrier_sync_f", wrapper_dispatch_barrier_sync_f}};
+        
+        rebind_symbols(rebindings, sizeof(rebindings)/sizeof(struct rebinding));
+    }
+    
+    // Locks for the custom subclasses
     pthread_mutexattr_t mutexattr;
     pthread_mutexattr_init(&mutexattr);
     pthread_mutexattr_settype(&mutexattr, PTHREAD_MUTEX_RECURSIVE);
@@ -306,7 +367,9 @@ static void RegisterCustomSubclass(Class subclass, Class superclass)
     
     gCustomSubclasses = [NSMutableSet new];
     gCustomSubclassMap = [NSMutableDictionary new];
+
     
+    // Swizzle some methods so we can set up when a MOC or managed object is created.
     NSError *error = nil;
     if (![self jr_swizzleMethod:@selector(initWithEntity:insertIntoManagedObjectContext:) withMethod:@selector(gd_initWithEntity:insertIntoManagedObjectContext:) error:&error]) {
         NSLog(@"Failed to swizzle with error: %@", error);
@@ -347,6 +410,7 @@ static void RegisterCustomSubclass(Class subclass, Class superclass)
 {
     self = [self gd_init];
 #endif
+    
     SetConcurrencyIdentifierForContext(self);
 
     return self;
