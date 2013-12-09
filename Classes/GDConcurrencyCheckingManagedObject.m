@@ -362,6 +362,8 @@ DISPATCH_WRAPPER(dispatch_barrier_sync_f);
 DISPATCH_BLOCK_WRAPPER(dispatch_sync);
 DISPATCH_BLOCK_WRAPPER(dispatch_barrier_sync);
 
+static void EmptyFunction() {}
+
 static void GDCoreDataConcurrencyDebuggingInitialise()
 {
     static dispatch_once_t onceToken;
@@ -372,18 +374,26 @@ static void GDCoreDataConcurrencyDebuggingInitialise()
             
             Dl_info info;
             
-            original_dispatch_sync_f = dispatch_sync_f;
-            original_dispatch_barrier_sync_f = dispatch_barrier_sync_f;
-            original_dispatch_sync = dispatch_sync;
-            original_dispatch_barrier_sync = dispatch_barrier_sync;
+            // We need to make sure every function that we're rebinding has been called in this module before they are rebound.
+            // This ensures that when rebind_symbols is called, it will find the correct value for the symbol in the lookup table
+            // for this module.  This is then used to set the original_dispatch_* function pointers.
+            {
+                dispatch_queue_t q = dispatch_queue_create("foo", DISPATCH_QUEUE_SERIAL);
+                dispatch_sync_f(q, NULL, EmptyFunction);
+                dispatch_barrier_sync_f(q, NULL, EmptyFunction);
+                dispatch_sync(q, ^{});
+                dispatch_barrier_sync(q, ^{});
+                dispatch_release(q);
+            }
             
-            dladdr(original_dispatch_sync_f, &info);
+            // We need to get our module name so we know which module we know has the symbol resolved.
+            dladdr(EmptyFunction, &info);
             
             struct rebinding rebindings[] = {
-                {"dispatch_sync_f", wrapper_dispatch_sync_f, info.dli_fname},
-                {"dispatch_barrier_sync_f", wrapper_dispatch_barrier_sync_f, info.dli_fname},
-                {"dispatch_sync", wrapper_dispatch_sync, info.dli_fname},
-                {"dispatch_barrier_sync", wrapper_dispatch_barrier_sync, info.dli_fname}
+                {"dispatch_sync_f",         wrapper_dispatch_sync_f,            info.dli_fname, (void**)&original_dispatch_sync_f},
+                {"dispatch_barrier_sync_f", wrapper_dispatch_barrier_sync_f,    info.dli_fname, (void**)&original_dispatch_barrier_sync_f},
+                {"dispatch_sync",           wrapper_dispatch_sync,              info.dli_fname, (void**)&original_dispatch_sync},
+                {"dispatch_barrier_sync",   wrapper_dispatch_barrier_sync,      info.dli_fname, (void**)&original_dispatch_barrier_sync}
             };
             
             rebind_symbols(rebindings, sizeof(rebindings)/sizeof(struct rebinding));
