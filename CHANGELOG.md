@@ -1,5 +1,9 @@
 # GDCoreDataConcurrencyDebugging CHANGELOG
 
+## 0.0.7
+
+Rewrote the code to handle nested NSManagedObjectContext's.  This can now handle the case of a NSPrivateQueueConcurrencyType context having an NSMainQueueConcurrencyType context as parent.
+
 ## 0.0.6
 
 Fixed validation of NSMainQueueConcurrencyType
