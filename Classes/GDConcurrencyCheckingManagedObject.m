@@ -292,7 +292,7 @@ static void RegisterCustomSubclass(Class subclass, Class superclass)
 struct DispatchWrapperState {
     void *context;
     void (*function)(void *);
-    NSMutableArray *concurrencyIdentifiers;
+    NSSet *concurrencyIdentifiers;
     dispatch_block_t block;
 };
 
@@ -325,11 +325,11 @@ static void DispatchSyncWrapper(dispatch_queue_t queue, void *context, void (*fu
     // This list of concurrency identifiers is basically a stack of the current set of queues that we are logically synchronously executing on,
     // even if we aren't executing on that thread.  For example, if we dispatch_sync from a background queue to the main queue, the two queues will
     // presently be running on different threads, but the block on the main queue is essentially operating on the background queue too.
-    NSMutableArray *concurrencyIdentifiers = [[[NSThread currentThread] threadDictionary] objectForKey:ConcurrencyIdentifiersThreadDictionaryKey];
+    NSSet *concurrencyIdentifiers = [[[NSThread currentThread] threadDictionary] objectForKey:ConcurrencyIdentifiersThreadDictionaryKey];
     if (!concurrencyIdentifiers) {
-        concurrencyIdentifiers = [NSMutableArray array];
+        concurrencyIdentifiers = [NSSet set];
     }
-    [concurrencyIdentifiers addObject:[NSValue valueWithPointer:dispatch_current_queue()]];
+    concurrencyIdentifiers = [concurrencyIdentifiers setByAddingObject:[NSValue valueWithPointer:dispatch_current_queue()]];
     
     struct DispatchWrapperState state = {context, function, concurrencyIdentifiers, block};
     
