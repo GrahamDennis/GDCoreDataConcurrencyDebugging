@@ -303,7 +303,7 @@ static void DispatchTargetFunctionWrapper(void *context)
     NSMutableDictionary *threadDictionary = [[NSThread currentThread] threadDictionary];
     
     // Save the old concurrency identifier array, if there was one.
-    id oldConcurrencyIdentifiers = [threadDictionary objectForKey:ConcurrencyIdentifiersThreadDictionaryKey];
+    id oldConcurrencyIdentifiers = [[threadDictionary objectForKey:ConcurrencyIdentifiersThreadDictionaryKey] retain];
     
     [threadDictionary setObject:state->concurrencyIdentifiers forKey:ConcurrencyIdentifiersThreadDictionaryKey];
     
@@ -317,6 +317,8 @@ static void DispatchTargetFunctionWrapper(void *context)
         [threadDictionary setObject:oldConcurrencyIdentifiers forKey:ConcurrencyIdentifiersThreadDictionaryKey];
     else
         [threadDictionary removeObjectForKey:ConcurrencyIdentifiersThreadDictionaryKey];
+    
+    [oldConcurrencyIdentifiers release];
 }
 
 static void DispatchSyncWrapper(dispatch_queue_t queue, void *context, void (*function)(void *), dispatch_block_t block, void *dispatch_call)
@@ -331,9 +333,11 @@ static void DispatchSyncWrapper(dispatch_queue_t queue, void *context, void (*fu
     }
     concurrencyIdentifiers = [concurrencyIdentifiers setByAddingObject:[NSValue valueWithPointer:dispatch_current_queue()]];
     
+    [concurrencyIdentifiers retain];
+    
     struct DispatchWrapperState state = {context, function, concurrencyIdentifiers, block};
     
-    // Passing the stack frame is OK because this is a sync function call
+    // Passing 'state' on the stack frame is OK because this is a sync function call
     if (function) {
         ((void (*)(dispatch_queue_t, void*, void (*)(void *)))dispatch_call)(queue, &state, DispatchTargetFunctionWrapper);
     } else {
@@ -341,6 +345,8 @@ static void DispatchSyncWrapper(dispatch_queue_t queue, void *context, void (*fu
             DispatchTargetFunctionWrapper((void *)&state);
         });
     }
+    
+    [concurrencyIdentifiers release];
 }
 
 #define DISPATCH_WRAPPER(dispatch_function)                                                                     \
