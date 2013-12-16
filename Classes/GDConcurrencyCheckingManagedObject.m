@@ -37,8 +37,13 @@
 #import "fishhook.h"
 
 static pthread_mutex_t gMutex;
+static pthread_key_t gAutoreleaseTrackingStateKey;
+static pthread_key_t gInAutoreleaseKey;
 static NSMutableSet *gCustomSubclasses;
 static NSMutableDictionary *gCustomSubclassMap; // maps regular classes to their custom subclasses
+
+static void *GDInAutoreleaseState_NotInAutorelease = NULL;
+static void *GDInAutoreleaseState_InAutorelease = &GDInAutoreleaseState_InAutorelease;
 
 #define WhileLocked(block) do { \
     pthread_mutex_lock(&gMutex); \
@@ -48,6 +53,16 @@ static NSMutableDictionary *gCustomSubclassMap; // maps regular classes to their
 
 static Class CreateCustomSubclass(Class class);
 static void RegisterCustomSubclass(Class subclass, Class superclass);
+
+@interface GDAutoreleaseTracker : NSObject
+
++ (void)createTrackerForObject:(NSObject *)object callStack:(NSArray *)callStack;
+
+@property (nonatomic, copy) NSArray *autoreleaseBacktrace;
+@property (nonatomic, strong) NSObject *object;
+
+@end
+
 
 // Public interface
 Class GDConcurrencyCheckingManagedObjectClassForClass(Class managedObjectClass)
@@ -72,7 +87,7 @@ void GDCoreDataConcurrencyDebuggingSetFailureHandler(void (*failureFunction)(SEL
 
 #pragma mark -
 
-// COREDATA_QUEUES_AVAILABLE is defined if the NSManagedObjectContext has the concurrencyType attribute
+// COREDATA_CONCURRENCY_AVAILABLE is defined if the NSManagedObjectContext has the concurrencyType attribute
 #if (__MAC_OS_X_VERSION_MIN_REQUIRED >= __MAC_10_7) || (__IPHONE_OS_VERSION_MIN_REQUIRED >= __IPHONE_5_0)
     #define COREDATA_CONCURRENCY_AVAILABLE
 #endif
@@ -96,8 +111,8 @@ static Class GetRealSuperclass(id obj)
 
 static const void *ConcurrencyIdentifierKey = &ConcurrencyIdentifierKey;
 static const void *ConcurrencyTypeKey = &ConcurrencyTypeKey;
-static const void *ConcurrencyLastAutoreleaseBacktraceKey = &ConcurrencyLastAutoreleaseBacktraceKey;
 static NSValue *ConcurrencyIdentifiersThreadDictionaryKey = nil;
+static NSValue *ConcurrencyValidAutoreleaseThreadDictionaryKey = nil;
 
 #define dispatch_current_queue() ({                                                    \
       _Pragma("clang diagnostic push");                                                \
@@ -107,7 +122,7 @@ static NSValue *ConcurrencyIdentifiersThreadDictionaryKey = nil;
       queue;                                                                           \
     })
 
-static BOOL ValidateConcurrencyForManagedObjectWithExpectedIdentifier(NSManagedObject *object, void *expectedConcurrencyIdentifier)
+static BOOL ValidateConcurrencyForObjectWithExpectedIdentifier(id object, void *expectedConcurrencyIdentifier)
 {
     NSCParameterAssert(object);
     NSCParameterAssert(expectedConcurrencyIdentifier);
@@ -165,16 +180,20 @@ static void SetConcurrencyIdentifierForContext(NSManagedObjectContext *context)
     objc_setAssociatedObject(context, ConcurrencyIdentifierKey, concurrencyIdentifier, OBJC_ASSOCIATION_ASSIGN);
 }
 
-static BOOL ValidateConcurrency(NSManagedObject *object, SEL _cmd)
+static BOOL ValidateConcurrency(id object, SEL _cmd)
 {
     void *desiredConcurrencyIdentifier = (void *)objc_getAssociatedObject(object, ConcurrencyIdentifierKey);
     if(nil == desiredConcurrencyIdentifier) {
         return YES;
     }
-    BOOL concurrencyValid = ValidateConcurrencyForManagedObjectWithExpectedIdentifier(object, desiredConcurrencyIdentifier);
+    BOOL concurrencyValid = ValidateConcurrencyForObjectWithExpectedIdentifier(object, desiredConcurrencyIdentifier);
     if (!concurrencyValid) {
-        if (GDConcurrencyFailureFunction) GDConcurrencyFailureFunction(_cmd);
-        else {
+        NSMutableSet *trackingState = pthread_getspecific(gAutoreleaseTrackingStateKey);
+        if (trackingState != nil) {
+            [trackingState addObject:object];
+        } else if (GDConcurrencyFailureFunction) {
+            GDConcurrencyFailureFunction(_cmd);
+        } else {
             NSLog(@"Invalid concurrent access to managed object calling '%@'; Stacktrace: %@", NSStringFromSelector(_cmd), [NSThread callStackSymbols]);
         }
     }
@@ -185,15 +204,7 @@ static BOOL ValidateConcurrency(NSManagedObject *object, SEL _cmd)
 
 static void CustomSubclassRelease(id self, SEL _cmd)
 {
-    if (!ValidateConcurrency(self, _cmd) && [self retainCount] == 1) {
-        // About to be deallocated, and on the wrong queue!
-        // -dealloc sent on the wrong thread can be caused by an -autorelease being sent to an object causing it to live longer than it should
-        // In this situation, the stacktrace of the -dealloc isn't helpful, but the stacktrace of the last -autorelease will be.
-        NSString *autoreleaseStacktrace = objc_getAssociatedObject(self, ConcurrencyLastAutoreleaseBacktraceKey);
-        if (autoreleaseStacktrace) {
-            NSLog(@"Invalid last -release sent to managed object.  Last (invalid) autorelease stacktrace was: %@", autoreleaseStacktrace);
-        }
-    }
+    ValidateConcurrency(self, _cmd);
     Class superclass = GetRealSuperclass(self);
     IMP superRelease = class_getMethodImplementation(superclass, @selector(release));
     ((void (*)(id, SEL))superRelease)(self, _cmd);
@@ -201,10 +212,7 @@ static void CustomSubclassRelease(id self, SEL _cmd)
 
 static id CustomSubclassAutorelease(id self, SEL _cmd)
 {
-    if (!ValidateConcurrency(self, _cmd)) {
-        objc_setAssociatedObject(self, ConcurrencyLastAutoreleaseBacktraceKey, [NSThread callStackSymbols], OBJC_ASSOCIATION_COPY);
-    }
-    
+    ValidateConcurrency(self, _cmd);
     Class superclass = GetRealSuperclass(self);
     IMP superAutorelease = class_getMethodImplementation(superclass, @selector(autorelease));
     return ((id (*)(id, SEL))superAutorelease)(self, _cmd);
@@ -288,6 +296,11 @@ static void RegisterCustomSubclass(Class subclass, Class superclass)
 
 @end
 
+@interface NSObject (AutoreleaseTracking)
+
+- (id)gd_autorelease;
+
+@end
 
 struct DispatchWrapperState {
     void *context;
@@ -370,6 +383,13 @@ DISPATCH_BLOCK_WRAPPER(dispatch_barrier_sync);
 
 static void EmptyFunction() {}
 
+__attribute__ ((constructor))
+static void Initialise()
+{
+    pthread_key_create(&gAutoreleaseTrackingStateKey, NULL);
+    pthread_key_create(&gInAutoreleaseKey, NULL);
+}
+
 static void GDCoreDataConcurrencyDebuggingInitialise()
 {
     static dispatch_once_t onceToken;
@@ -377,6 +397,7 @@ static void GDCoreDataConcurrencyDebuggingInitialise()
         // Instrument dispatch_sync calls to keep track of the stack of synchronous queues.
         {
             ConcurrencyIdentifiersThreadDictionaryKey = [[NSValue valueWithPointer:&ConcurrencyIdentifiersThreadDictionaryKey] retain];
+            ConcurrencyValidAutoreleaseThreadDictionaryKey = [[NSValue valueWithPointer:&ConcurrencyValidAutoreleaseThreadDictionaryKey] retain];
             
             Dl_info info;
             
@@ -418,6 +439,18 @@ static void GDCoreDataConcurrencyDebuggingInitialise()
     });
 }
 
+static void AssignExpectedIdentifiersToObjectFromContext(id object, NSManagedObjectContext *context)
+{
+    if (context) {
+        // Assign expected concurrency identifier
+        objc_setAssociatedObject(object, ConcurrencyIdentifierKey, GetConcurrencyIdentifierForContext(context), OBJC_ASSOCIATION_ASSIGN);
+#ifdef COREDATA_CONCURRENCY_AVAILABLE
+        // Assign concurrency type in case the context is released before this object is.
+        objc_setAssociatedObject(object, ConcurrencyTypeKey, (void *)context.concurrencyType, OBJC_ASSOCIATION_ASSIGN);
+#endif
+    }
+}
+
 @implementation NSManagedObject (GDCoreDataConcurrencyChecking)
 
 + (void)load
@@ -428,10 +461,16 @@ static void GDCoreDataConcurrencyDebuggingInitialise()
         NSLog(@"Failed to swizzle with error: %@", error);
     }
 #ifdef COREDATA_CONCURRENCY_AVAILABLE
-    if (![NSManagedObjectContext jr_swizzleMethod:@selector(initWithConcurrencyType:) withMethod:@selector(gd_initWithConcurrencyType:) error:&error]) {
+    if (![NSManagedObjectContext jr_swizzleMethod:@selector(initWithConcurrencyType:) withMethod:@selector(gd_initWithConcurrencyType:) error:&error])
 #else
-    if (![NSManagedObjectContext jr_swizzleMethod:@selector(init) withMethod:@selector(gd_init) error:&error]) {
+    if (![NSManagedObjectContext jr_swizzleMethod:@selector(init) withMethod:@selector(gd_init) error:&error])
 #endif
+    {
+        NSLog(@"Failed to swizzle with error: %@", error);
+    }
+    
+    if (![NSObject jr_swizzleMethod:@selector(autorelease) withMethod:@selector(gd_autorelease) error:&error])
+    {
         NSLog(@"Failed to swizzle with error: %@", error);
     }
 }
@@ -442,14 +481,7 @@ static void GDCoreDataConcurrencyDebuggingInitialise()
 
     GDCoreDataConcurrencyDebuggingInitialise();
     
-    if (context) {
-        // Assign expected concurrency identifier
-        objc_setAssociatedObject(self, ConcurrencyIdentifierKey, GetConcurrencyIdentifierForContext(context), OBJC_ASSOCIATION_ASSIGN);
-#ifdef COREDATA_CONCURRENCY_AVAILABLE
-        // Assign concurrency type in case the context is released before this object is.
-        objc_setAssociatedObject(self, ConcurrencyTypeKey, (void *)context.concurrencyType, OBJC_ASSOCIATION_ASSIGN);
-#endif
-    }
+    AssignExpectedIdentifiersToObjectFromContext(self, context);
     return self;
 }
 
@@ -465,6 +497,9 @@ static void GDCoreDataConcurrencyDebuggingInitialise()
 - (id)gd_init
 {
     self = [self gd_init];
+#if 0
+}}
+#endif
 #endif
     
     GDCoreDataConcurrencyDebuggingInitialise();
@@ -472,6 +507,65 @@ static void GDCoreDataConcurrencyDebuggingInitialise()
     SetConcurrencyIdentifierForContext(self);
 
     return self;
+}
+
+@end
+
+@implementation GDAutoreleaseTracker
+
++ (void)createTrackerForObject:(NSObject *)object callStack:(NSArray *)callStack
+{
+    [[[GDAutoreleaseTracker alloc] initWithObject:object callStack:callStack] autorelease];
+}
+
+- (void)dealloc
+{
+    NSMutableSet *invalidlyAccessedObjectsSet = [NSMutableSet new];
+    pthread_setspecific(gAutoreleaseTrackingStateKey, invalidlyAccessedObjectsSet);
+
+    Class cls = object_getClass(_object);
+    
+    self.object = nil;
+    BOOL wasValidRelease = [invalidlyAccessedObjectsSet count] == 0;
+    
+    if (!wasValidRelease) {
+        NSLog(@"Invalid concurrent access to object of class '%@' caused by earlier autorelease.  The autorelease pool was drained outside of the appropriate context for some managed objects.  You need to add an @autoreleasepool{} directive to ensure this object is released within the NSManagedObject's queue.\nOriginal autorelease backtrace: %@; Invalidly accessed objects: %@", NSStringFromClass(cls), self.autoreleaseBacktrace, invalidlyAccessedObjectsSet);
+    }
+    pthread_setspecific(gAutoreleaseTrackingStateKey, nil);
+    self.autoreleaseBacktrace = nil;
+    
+    [super dealloc];
+}
+
+- (id)initWithObject:(NSObject *)object callStack:(NSArray *)callStack
+{
+    if ((self = [super init])) {
+        self.object = object;
+        self.autoreleaseBacktrace = callStack;
+    }
+    
+    return self;
+}
+
+@end
+
+@implementation NSObject (AutoreleaseTracking)
+
+- (id)gd_autorelease
+{
+    BOOL inAutorelease = pthread_getspecific(gInAutoreleaseKey) == GDInAutoreleaseState_InAutorelease;
+    if (!inAutorelease) {
+        pthread_setspecific(gInAutoreleaseKey, GDInAutoreleaseState_InAutorelease);
+        [GDAutoreleaseTracker createTrackerForObject:self callStack:[NSThread callStackSymbols]];
+    }
+    
+    id result = [self gd_autorelease];
+    
+    if (!inAutorelease) {
+        pthread_setspecific(gInAutoreleaseKey, GDInAutoreleaseState_NotInAutorelease);
+    }
+    
+    return result;
 }
 
 @end
