@@ -557,15 +557,12 @@ static void AssignExpectedIdentifiersToObjectFromContext(id object, NSManagedObj
     if (!inAutorelease) {
         pthread_setspecific(gInAutoreleaseKey, GDInAutoreleaseState_InAutorelease);
         [GDAutoreleaseTracker createTrackerForObject:self callStack:[NSThread callStackSymbols]];
-    }
-    
-    id result = [self gd_autorelease];
-    
-    if (!inAutorelease) {
+
         pthread_setspecific(gInAutoreleaseKey, GDInAutoreleaseState_NotInAutorelease);
+        return self;
+    } else {
+        return [self gd_autorelease];
     }
-    
-    return result;
 }
 
 @end
