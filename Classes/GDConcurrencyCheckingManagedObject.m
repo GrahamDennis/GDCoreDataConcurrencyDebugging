@@ -549,10 +549,24 @@ static void AssignExpectedIdentifiersToObjectFromContext(id object, NSManagedObj
 
 @end
 
+static int32_t GDTrackAutoreleaseCounter = 0;
+
+void GDCoreDataConcurrencyDebuggingBeginTrackingAutorelease()
+{
+    OSAtomicIncrement32Barrier(&GDTrackAutoreleaseCounter);
+}
+
+void GDCoreDataConcurrencyDebuggingEndTrackingAutorelease()
+{
+    OSAtomicDecrement32Barrier(&GDTrackAutoreleaseCounter);
+}
+
 @implementation NSObject (AutoreleaseTracking)
 
 - (id)gd_autorelease
 {
+    if (GDTrackAutoreleaseCounter == 0) { return [self gd_autorelease]; }
+    
     BOOL inAutorelease = pthread_getspecific(gInAutoreleaseKey) == GDInAutoreleaseState_InAutorelease;
     if (!inAutorelease) {
         pthread_setspecific(gInAutoreleaseKey, GDInAutoreleaseState_InAutorelease);

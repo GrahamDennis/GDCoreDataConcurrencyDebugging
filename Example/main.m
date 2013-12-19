@@ -73,7 +73,8 @@ NSManagedObject *IdentityFunction(NSManagedObject *object)
 
 int main(int argc, const char * argv[])
 {
-
+    GDCoreDataConcurrencyDebuggingBeginTrackingAutorelease();
+    
     @autoreleasepool {
         GDCoreDataConcurrencyDebuggingSetFailureHandler(ConcurrencyFailure);
         // Create the managed object context
@@ -218,6 +219,7 @@ int main(int argc, const char * argv[])
         
         [[NSRunLoop mainRunLoop] run];
     }
+    GDCoreDataConcurrencyDebuggingEndTrackingAutorelease();
     return 0;
 }
 
