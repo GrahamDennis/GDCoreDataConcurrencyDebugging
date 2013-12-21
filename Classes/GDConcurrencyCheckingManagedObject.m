@@ -33,6 +33,7 @@
 #import <dlfcn.h>
 
 #import <JRSwizzle/JRSwizzle.h>
+#import <libkern/OSAtomic.h>
 
 #import "fishhook.h"
 
