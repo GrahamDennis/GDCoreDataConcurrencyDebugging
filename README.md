@@ -44,7 +44,7 @@ To run the example project; clone the repo, and run `pod install` from the Proje
 
 ## Requirements
 
-Mac OS X 10.6+, iOS 3.1+
+Mac OS X 10.6+, iOS 3.1+, [JRSwizzle]
 
 ## Installation
 
@@ -74,3 +74,4 @@ GDCoreDataConcurrencyDebugging is available under the MIT license. See the LICEN
 
 [MAZeroingWeakRef]: https://github.com/mikeash/MAZeroingWeakRef
 [blog-post]: http://www.grahamdennis.me/blog/2013/09/09/debugging-concurrency-with-core-data/
+[JRSwizzle]: https://github.com/rentzsch/jrswizzle
