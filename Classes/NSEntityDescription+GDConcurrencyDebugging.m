@@ -26,6 +26,7 @@
 - (NSString *)gd_managedObjectClassName
 {
     NSString *normalClassName = [self gd_managedObjectClassName];
+    if ([self isAbstract]) return normalClassName;
     
     Class normalClass = NSClassFromString(normalClassName);
     Class subclass = GDConcurrencyCheckingManagedObjectClassForClass(normalClass);
