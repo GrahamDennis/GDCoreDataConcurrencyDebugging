@@ -42,6 +42,7 @@ static pthread_key_t gAutoreleaseTrackingStateKey;
 static pthread_key_t gInAutoreleaseKey;
 static NSMutableSet *gCustomSubclasses;
 static NSMutableDictionary *gCustomSubclassMap; // maps regular classes to their custom subclasses
+static NSMutableSet *gSwizzledEntityClasses;
 
 static void *GDInAutoreleaseState_NotInAutorelease = NULL;
 static void *GDInAutoreleaseState_InAutorelease = &GDInAutoreleaseState_InAutorelease;
@@ -283,7 +284,11 @@ static void RegisterCustomSubclass(Class subclass, Class superclass)
 
 @interface NSManagedObject (GDCoreDataConcurrencyChecking)
 
++ (Class)classForEntity:(NSEntityDescription *)entity;
+
 - (id)gd_initWithEntity:(NSEntityDescription *)entity insertIntoManagedObjectContext:(NSManagedObjectContext *)context;
+
+- (Class)grd_class;
 
 @end
 
@@ -436,6 +441,7 @@ static void GDCoreDataConcurrencyDebuggingInitialise()
         
         gCustomSubclasses = [NSMutableSet new];
         gCustomSubclassMap = [NSMutableDictionary new];
+        gSwizzledEntityClasses = [NSMutableSet new];
 
     });
 }
@@ -452,7 +458,10 @@ static void AssignExpectedIdentifiersToObjectFromContext(id object, NSManagedObj
     }
 }
 
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wincomplete-implementation"
 @implementation NSManagedObject (GDCoreDataConcurrencyChecking)
+#pragma clang diagnostic pop
 
 + (void)load
 {
@@ -474,6 +483,28 @@ static void AssignExpectedIdentifiersToObjectFromContext(id object, NSManagedObj
     {
         NSLog(@"Failed to swizzle with error: %@", error);
     }
+    
+    if (![self jr_swizzleClassMethod:@selector(classForEntity:) withClassMethod:@selector(grd_classForEntity:) error:&error]) {
+        NSLog(@"Failed to swizzle with error: %@", error);
+    }
+}
+
++ (Class)grd_classForEntity:(NSEntityDescription *)entity
+{
+    Class entityClass = [self grd_classForEntity:entity];
+    
+    WhileLocked({
+        if (![gSwizzledEntityClasses containsObject:entityClass]) {
+            NSError *error = nil;
+            if (![entityClass jr_swizzleMethod:@selector(class) withMethod:@selector(grd_class) error:&error]) {
+                NSLog(@"Failed to swizzle entity class %@ due to error: %@", entityClass, error);
+            } else {
+                [gSwizzledEntityClasses addObject:entityClass];
+            }
+        }
+    });
+    
+    return entityClass;
 }
 
 - (id)gd_initWithEntity:(NSEntityDescription *)entity insertIntoManagedObjectContext:(NSManagedObjectContext *)context
@@ -484,6 +515,11 @@ static void AssignExpectedIdentifiersToObjectFromContext(id object, NSManagedObj
     
     AssignExpectedIdentifiersToObjectFromContext(self, context);
     return self;
+}
+
+- (Class)grd_class
+{
+    return GetRealSuperclass(self);
 }
 
 @end
