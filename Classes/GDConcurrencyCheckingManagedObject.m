@@ -94,9 +94,8 @@ void GDCoreDataConcurrencyDebuggingSetFailureHandler(void (*failureFunction)(SEL
     #define COREDATA_CONCURRENCY_AVAILABLE
 #endif
 
-static Class GetCustomSubclass(id obj)
+static Class GetCustomSubclass(Class class)
 {
-    Class class = object_getClass(obj);
     WhileLocked({
         while(class && ![gCustomSubclasses containsObject: class])
             class = class_getSuperclass(class);
@@ -106,7 +105,7 @@ static Class GetCustomSubclass(id obj)
 
 static Class GetRealSuperclass(id obj)
 {
-    Class class = GetCustomSubclass(obj);
+    Class class = GetCustomSubclass(object_getClass(obj));
     NSCAssert1(class, @"Coudn't find GDCoreDataConcurrencyDebugging subclass in hierarchy starting from %@, should never happen", object_getClass(obj));
     return class_getSuperclass(class);
 }
@@ -208,7 +207,7 @@ static void CustomSubclassRelease(id self, SEL _cmd)
 {
     ValidateConcurrency(self, _cmd);
     Class superclass = GetRealSuperclass(self);
-    IMP superRelease = class_getMethodImplementation(superclass, @selector(release));
+    IMP superRelease = class_getMethodImplementation(superclass, _cmd);
     ((void (*)(id, SEL))superRelease)(self, _cmd);
 }
 
@@ -216,7 +215,7 @@ static id CustomSubclassAutorelease(id self, SEL _cmd)
 {
     ValidateConcurrency(self, _cmd);
     Class superclass = GetRealSuperclass(self);
-    IMP superAutorelease = class_getMethodImplementation(superclass, @selector(autorelease));
+    IMP superAutorelease = class_getMethodImplementation(superclass, _cmd);
     return ((id (*)(id, SEL))superAutorelease)(self, _cmd);
 }
 
@@ -224,7 +223,7 @@ static void CustomSubclassWillAccessValueForKey(id self, SEL _cmd, NSString *key
 {
     ValidateConcurrency(self, _cmd);
     Class superclass = GetRealSuperclass(self);
-    IMP superWillAccessValueForKey = class_getMethodImplementation(superclass, @selector(willAccessValueForKey:));
+    IMP superWillAccessValueForKey = class_getMethodImplementation(superclass, _cmd);
     ((void (*)(id, SEL, id))superWillAccessValueForKey)(self, _cmd, key);
 }
 
@@ -232,7 +231,7 @@ static void CustomSubclassWillChangeValueForKey(id self, SEL _cmd, NSString *key
 {
     ValidateConcurrency(self, _cmd);
     Class superclass = GetRealSuperclass(self);
-    IMP superWillChangeValueForKey = class_getMethodImplementation(superclass, @selector(willChangeValueForKey:));
+    IMP superWillChangeValueForKey = class_getMethodImplementation(superclass, _cmd);
     ((void (*)(id, SEL, id))superWillChangeValueForKey)(self, _cmd, key);
 }
 
@@ -240,8 +239,23 @@ static void CustomSubclassWillChangeValueForKeyWithSetMutationUsingObjects(id se
 {
     ValidateConcurrency(self, _cmd);
     Class superclass = GetRealSuperclass(self);
-    IMP superWillChangeValueForKeyWithSetMutationUsingObjects = class_getMethodImplementation(superclass, @selector(willChangeValueForKey:withSetMutation:usingObjects:));
+    IMP superWillChangeValueForKeyWithSetMutationUsingObjects = class_getMethodImplementation(superclass, _cmd);
     ((void (*)(id, SEL, id, NSKeyValueSetMutationKind, id))superWillChangeValueForKeyWithSetMutationUsingObjects)(self, _cmd, key, mutationkind, inObjects);
+}
+
+static BOOL CustomSubclassIsKindOfClass(id self, SEL _cmd, Class class)
+{
+    Class superclass = GetRealSuperclass(self);
+    IMP superIsKindOfClass = class_getMethodImplementation(superclass, _cmd);
+    BOOL result = ((BOOL (*)(id, SEL, Class))superIsKindOfClass)(self, _cmd, class);
+    if (result) return result;
+    
+    Class customSubclassOfClass = GetCustomSubclass(class);
+    if (customSubclassOfClass) {
+        class = class_getSuperclass(customSubclassOfClass);
+        return ((BOOL (*)(id, SEL, Class))superIsKindOfClass)(self, _cmd, class);
+    }
+    return result;
 }
 
 #pragma mark - Dynamic subclass creation and registration
@@ -258,6 +272,7 @@ static Class CreateCustomSubclass(Class class)
     Method willAccessValueForKey = class_getInstanceMethod(class, @selector(willAccessValueForKey:));
     Method willChangeValueForKey = class_getInstanceMethod(class, @selector(willChangeValueForKey:));
     Method willChangeValueForKeyWithSetMutationUsingObjects = class_getInstanceMethod(class, @selector(willChangeValueForKey:withSetMutation:usingObjects:));
+    Method isKindOfClass = class_getInstanceMethod(class, @selector(isKindOfClass:));
     
     // We do not override dealloc because if a context has more than 300 objects it has references to, the objects will be deallocated on a background queue
     // This would normally be considered unsafe access, but as its Core Data doing this, we must assume it to be safe.
@@ -268,6 +283,7 @@ static Class CreateCustomSubclass(Class class)
     class_addMethod(subclass, @selector(willAccessValueForKey:), (IMP)CustomSubclassWillAccessValueForKey, method_getTypeEncoding(willAccessValueForKey));
     class_addMethod(subclass, @selector(willChangeValueForKey:), (IMP)CustomSubclassWillChangeValueForKey, method_getTypeEncoding(willChangeValueForKey));
     class_addMethod(subclass, @selector(willChangeValueForKey:withSetMutation:usingObjects:), (IMP)CustomSubclassWillChangeValueForKeyWithSetMutationUsingObjects, method_getTypeEncoding(willChangeValueForKeyWithSetMutationUsingObjects));
+    class_addMethod(subclass, @selector(isKindOfClass:), (IMP)CustomSubclassIsKindOfClass, method_getTypeEncoding(isKindOfClass));
     
     objc_registerClassPair(subclass);
     

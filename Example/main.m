@@ -91,6 +91,16 @@ int main(int argc, const char * argv[])
             [context1 save:NULL];
         }];
         
+        @autoreleasepool {
+            [context1 performBlockAndWait:^{
+                NSEntityDescription *childEntityDescription = [NSEntityDescription entityForName:@"ChildEntity"
+                                                                          inManagedObjectContext:context1];
+                NSManagedObject *childEntity = [[NSManagedObject alloc] initWithEntity:childEntityDescription insertIntoManagedObjectContext:context1];
+                [objectInContext1 setValue:childEntity forKey:@"relatedEntity"];
+                [context1 save:NULL];
+            }];
+        }
+        
         // Here's an obvious invalid access
         NSString *name = objectInContext1.name;
         NSLog(@"name: %@", name);
