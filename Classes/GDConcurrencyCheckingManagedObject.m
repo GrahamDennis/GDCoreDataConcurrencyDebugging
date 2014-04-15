@@ -479,6 +479,7 @@ static void AssignExpectedIdentifiersToObjectFromContext(id object, NSManagedObj
 @implementation NSManagedObject (GDCoreDataConcurrencyChecking)
 #pragma clang diagnostic pop
 
+#ifndef NDEBUG
 + (void)load
 {
     // Swizzle some methods so we can set up when a MOC or managed object is created.
@@ -504,6 +505,7 @@ static void AssignExpectedIdentifiersToObjectFromContext(id object, NSManagedObj
         NSLog(@"Failed to swizzle with error: %@", error);
     }
 }
+#endif
 
 + (Class)grd_classForEntity:(NSEntityDescription *)entity
 {

@@ -13,6 +13,7 @@
 
 @implementation NSEntityDescription (GDConcurrencyDebugging)
 
+#ifndef NDEBUG
 + (void)load
 {
     NSError *error = nil;
@@ -22,6 +23,7 @@
         NSLog(@"Failed to swizzle with error: %@", error);
     }
 }
+#endif
 
 - (NSString *)gd_managedObjectClassName
 {
