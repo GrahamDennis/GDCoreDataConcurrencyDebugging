@@ -13,7 +13,7 @@
 
 @implementation NSEntityDescription (GDConcurrencyDebugging)
 
-#ifndef NDEBUG
+#ifndef GDCOREDATACONCURRENCYDEBUGGING_DISABLED
 + (void)load
 {
     NSError *error = nil;

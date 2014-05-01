@@ -1,5 +1,5 @@
 PODS:
-  - GDCoreDataConcurrencyDebugging (0.0.7):
+  - GDCoreDataConcurrencyDebugging (0.1):
     - JRSwizzle
   - JRSwizzle (1.0)
 
@@ -11,7 +11,7 @@ EXTERNAL SOURCES:
     :path: ..
 
 SPEC CHECKSUMS:
-  GDCoreDataConcurrencyDebugging: bc73d006b385bf8ede3861838836d81adf160fda
+  GDCoreDataConcurrencyDebugging: 484fb925228b5beac19774c21e4db9ed1f9cc564
   JRSwizzle: 6242ff38485d870fc2636899048ee1ab883ae587
 
-COCOAPODS: 0.29.0
+COCOAPODS: 0.32.1

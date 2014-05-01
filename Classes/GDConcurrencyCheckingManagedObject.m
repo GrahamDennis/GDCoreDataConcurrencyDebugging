@@ -47,6 +47,13 @@ static NSMutableSet *gSwizzledEntityClasses;
 static void *GDInAutoreleaseState_NotInAutorelease = NULL;
 static void *GDInAutoreleaseState_InAutorelease = &GDInAutoreleaseState_InAutorelease;
 
+NSUInteger GDOperationQueueConcurrencyType = 
+#ifdef GDCOREDATACONCURRENCYDEBUGGING_DISABLED
+    NSConfinementConcurrencyType;
+#else
+    42;
+#endif
+
 #define WhileLocked(block) do { \
     pthread_mutex_lock(&gMutex); \
     block \
@@ -134,6 +141,9 @@ static BOOL ValidateConcurrencyForObjectWithExpectedIdentifier(id object, void *
 #endif
         return pthread_self() == expectedConcurrencyIdentifier;
 #ifdef COREDATA_CONCURRENCY_AVAILABLE
+    } else if (concurrencyType == GDOperationQueueConcurrencyType) {
+        NSOperationQueue *operationQueue = [NSOperationQueue currentQueue];
+        return (operationQueue == expectedConcurrencyIdentifier) && ([operationQueue maxConcurrentOperationCount] == 1);
     } else if (concurrencyType == NSMainQueueConcurrencyType && [NSThread isMainThread]) {
         return YES;
     } else {
@@ -150,20 +160,31 @@ static void *GetConcurrencyIdentifierForContext(NSManagedObjectContext *context)
     return objc_getAssociatedObject(context, ConcurrencyIdentifierKey);
 }
 
+static void *GetConcurrencyTypeForContext(NSManagedObjectContext *context)
+{
+    return objc_getAssociatedObject(context, ConcurrencyTypeKey);
+}
+
 static void SetConcurrencyIdentifierForContext(NSManagedObjectContext *context)
 {
     void *concurrencyIdentifier = GetConcurrencyIdentifierForContext(context);
     if (concurrencyIdentifier) return;
     
 #ifdef COREDATA_CONCURRENCY_AVAILABLE
-    if (context.concurrencyType == NSConfinementConcurrencyType) {
+    NSManagedObjectContextConcurrencyType concurrencyType = (NSManagedObjectContextConcurrencyType)GetConcurrencyTypeForContext(context);
+    if (concurrencyType == NSConfinementConcurrencyType) {
 #endif
         concurrencyIdentifier = pthread_self();
 #ifdef COREDATA_CONCURRENCY_AVAILABLE
-    } else if (context.concurrencyType == NSMainQueueConcurrencyType
-               || context.concurrencyType == NSPrivateQueueConcurrencyType) {
+    } else if (concurrencyType == GDOperationQueueConcurrencyType) {
+        NSOperationQueue *operationQueue = [NSOperationQueue currentQueue];
+        NSCParameterAssert(operationQueue != nil);
+        NSCParameterAssert([operationQueue maxConcurrentOperationCount] == 1);
+        concurrencyIdentifier = (void *)operationQueue;
+    } else if (concurrencyType == NSMainQueueConcurrencyType
+               || concurrencyType == NSPrivateQueueConcurrencyType) {
         __block dispatch_queue_t confinementQueue = NULL;
-        if (context.concurrencyType == NSMainQueueConcurrencyType)
+        if (concurrencyType == NSMainQueueConcurrencyType)
             confinementQueue = dispatch_get_main_queue();
         else {
             // Get the context queue by running a block on it
@@ -469,7 +490,7 @@ static void AssignExpectedIdentifiersToObjectFromContext(id object, NSManagedObj
         objc_setAssociatedObject(object, ConcurrencyIdentifierKey, GetConcurrencyIdentifierForContext(context), OBJC_ASSOCIATION_ASSIGN);
 #ifdef COREDATA_CONCURRENCY_AVAILABLE
         // Assign concurrency type in case the context is released before this object is.
-        objc_setAssociatedObject(object, ConcurrencyTypeKey, (void *)context.concurrencyType, OBJC_ASSOCIATION_ASSIGN);
+        objc_setAssociatedObject(object, ConcurrencyTypeKey, GetConcurrencyTypeForContext(context), OBJC_ASSOCIATION_ASSIGN);
 #endif
     }
 }
@@ -479,7 +500,7 @@ static void AssignExpectedIdentifiersToObjectFromContext(id object, NSManagedObj
 @implementation NSManagedObject (GDCoreDataConcurrencyChecking)
 #pragma clang diagnostic pop
 
-#ifndef NDEBUG
+#ifndef GDCOREDATACONCURRENCYDEBUGGING_DISABLED
 + (void)load
 {
     // Swizzle some methods so we can set up when a MOC or managed object is created.
@@ -547,7 +568,12 @@ static void AssignExpectedIdentifiersToObjectFromContext(id object, NSManagedObj
 #ifdef COREDATA_CONCURRENCY_AVAILABLE
 - (id)gd_initWithConcurrencyType:(NSManagedObjectContextConcurrencyType)type
 {
-    self = [self gd_initWithConcurrencyType:type];
+    NSManagedObjectContextConcurrencyType underlyingConcurrencyType = type;
+    if (type == GDOperationQueueConcurrencyType)
+        underlyingConcurrencyType = NSConfinementConcurrencyType;
+    
+    self = [self gd_initWithConcurrencyType:underlyingConcurrencyType];
+    objc_setAssociatedObject(self, ConcurrencyTypeKey, (void *)type, OBJC_ASSOCIATION_ASSIGN);
 #else
 - (id)gd_init
 {

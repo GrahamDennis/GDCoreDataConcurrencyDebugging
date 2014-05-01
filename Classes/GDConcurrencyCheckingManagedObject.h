@@ -11,3 +11,11 @@ extern void GDCoreDataConcurrencyDebuggingSetFailureHandler(void (*failureFuncti
 
 extern void GDCoreDataConcurrencyDebuggingBeginTrackingAutorelease();
 extern void GDCoreDataConcurrencyDebuggingEndTrackingAutorelease();
+
+
+#ifdef NDEBUG
+  #define GDCOREDATACONCURRENCYDEBUGGING_DISABLED
+#endif
+
+extern NSUInteger GDOperationQueueConcurrencyType;
+
