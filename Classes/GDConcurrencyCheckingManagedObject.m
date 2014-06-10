@@ -48,16 +48,15 @@ static void *GDInAutoreleaseState_NotInAutorelease = NULL;
 static void *GDInAutoreleaseState_InAutorelease = &GDInAutoreleaseState_InAutorelease;
 
 NSUInteger GDOperationQueueConcurrencyType = 
+#ifdef GDCOREDATACONCURRENCYDEBUGGING_DISABLED
+NSConfinementConcurrencyType;
+#else
+42;
+#endif
 
 #ifdef GD_CORE_DATA_CONCURRENCE_DEBUGGING_ENABLE_EXCEPTION
 static NSString *const GDInvalidConcurrentAccesOnReleaseException = @"GDInvalidConcurrentAccesOnReleaseException";
 static NSString *const GDInvalidConcurrentAccesException = @"GDInvalidConcurrentAccesException";
-#endif
-
-#ifdef GDCOREDATACONCURRENCYDEBUGGING_DISABLED
-    NSConfinementConcurrencyType;
-#else
-    42;
 #endif
 
 #define WhileLocked(block) do { \
