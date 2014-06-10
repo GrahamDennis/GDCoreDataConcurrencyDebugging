@@ -157,7 +157,7 @@ static void BreakOnInvalidConcurrentAccessOnRelease(NSString *classStringReprese
 
 static void BreakOnInvalidConcurrentAccess(NSString *selectorStringRepresentation, NSArray *callStackSymbols)
 {
-#ifndef GD_CORE_DATA_CONCURRENCE_DEBUGGING_ENABLE_LOG
+#ifndef GD_CORE_DATA_CONCURRENCE_DEBUGGING_DISABLE_LOG
     NSLog(@"If you want to break on invalid concurrent access, add a breakpoint on symbol BreakOnInvalidConcurrentAccess");
     NSLog(@"Invalid concurrent access to managed object calling '%@'; Stacktrace: %@"
           , selectorStringRepresentation
