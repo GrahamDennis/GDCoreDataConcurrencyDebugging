@@ -48,6 +48,12 @@ static void *GDInAutoreleaseState_NotInAutorelease = NULL;
 static void *GDInAutoreleaseState_InAutorelease = &GDInAutoreleaseState_InAutorelease;
 
 NSUInteger GDOperationQueueConcurrencyType = 
+
+#ifdef GD_CORE_DATA_CONCURRENCE_DEBUGGING_ENABLE_EXCEPTION
+static NSString *const GDInvalidConcurrentAccesOnReleaseException = @"GDInvalidConcurrentAccesOnReleaseException";
+static NSString *const GDInvalidConcurrentAccesException = @"GDInvalidConcurrentAccesException";
+#endif
+
 #ifdef GDCOREDATACONCURRENCYDEBUGGING_DISABLED
     NSConfinementConcurrencyType;
 #else
@@ -139,6 +145,14 @@ static void BreakOnInvalidConcurrentAccessOnRelease(NSString *classStringReprese
           , autoreleaseBacktrace
           , invalidlyAccessedObjectsSet);
 #endif
+    
+#ifdef GD_CORE_DATA_CONCURRENCE_DEBUGGING_ENABLE_EXCEPTION
+    [NSException raise:GDInvalidConcurrentAccesOnReleaseException
+                format:@"Invalid concurrent access to object of class '%@' caused by earlier autorelease.  The autorelease pool was drained outside of the appropriate context for some managed objects.  You need to add an @autoreleasepool{} directive to ensure this object is released within the NSManagedObject's queue.\nOriginal autorelease backtrace: %@; Invalidly accessed objects: %@"
+     , classStringRepresentation
+     , autoreleaseBacktrace
+     , invalidlyAccessedObjectsSet];
+#endif
 }
 
 static void BreakOnInvalidConcurrentAccess(NSString *selectorStringRepresentation, NSArray *callStackSymbols)
@@ -148,6 +162,13 @@ static void BreakOnInvalidConcurrentAccess(NSString *selectorStringRepresentatio
     NSLog(@"Invalid concurrent access to managed object calling '%@'; Stacktrace: %@"
           , selectorStringRepresentation
           , callStackSymbols);
+#endif
+    
+#ifdef GD_CORE_DATA_CONCURRENCE_DEBUGGING_ENABLE_EXCEPTION
+    [NSException raise:GDInvalidConcurrentAccesException
+                format:@"Invalid concurrent access to managed object calling '%@'; Stacktrace: %@"
+     , selectorStringRepresentation
+     , callStackSymbols];
 #endif
 }
 
