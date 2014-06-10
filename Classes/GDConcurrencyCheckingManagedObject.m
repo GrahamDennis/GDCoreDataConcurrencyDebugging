@@ -133,6 +133,7 @@ static void BreakOnInvalidConcurrentAccessOnRelease(NSString *classStringReprese
 
 {
 #ifndef GD_CORE_DATA_CONCURRENCE_DEBUGGING_DISABLE_LOG
+    NSLog(@"If you want to break on invalid concurrent access, add a breakpoint on symbol BreakOnInvalidConcurrentAccessOnRelease");
     NSLog(@"Invalid concurrent access to object of class '%@' caused by earlier autorelease.  The autorelease pool was drained outside of the appropriate context for some managed objects.  You need to add an @autoreleasepool{} directive to ensure this object is released within the NSManagedObject's queue.\nOriginal autorelease backtrace: %@; Invalidly accessed objects: %@"
           , classStringRepresentation
           , autoreleaseBacktrace
@@ -143,6 +144,7 @@ static void BreakOnInvalidConcurrentAccessOnRelease(NSString *classStringReprese
 static void BreakOnInvalidConcurrentAccess(NSString *selectorStringRepresentation, NSArray *callStackSymbols)
 {
 #ifndef GD_CORE_DATA_CONCURRENCE_DEBUGGING_ENABLE_LOG
+    NSLog(@"If you want to break on invalid concurrent access, add a breakpoint on symbol BreakOnInvalidConcurrentAccess");
     NSLog(@"Invalid concurrent access to managed object calling '%@'; Stacktrace: %@"
           , selectorStringRepresentation
           , callStackSymbols);
