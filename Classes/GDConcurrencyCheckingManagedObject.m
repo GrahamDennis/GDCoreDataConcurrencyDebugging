@@ -49,9 +49,14 @@ static void *GDInAutoreleaseState_InAutorelease = &GDInAutoreleaseState_InAutore
 
 NSUInteger GDOperationQueueConcurrencyType = 
 #ifdef GDCOREDATACONCURRENCYDEBUGGING_DISABLED
-    NSConfinementConcurrencyType;
+NSConfinementConcurrencyType;
 #else
-    42;
+42;
+#endif
+
+#ifdef GD_CORE_DATA_CONCURRENCE_DEBUGGING_ENABLE_EXCEPTION
+static NSString *const GDInvalidConcurrentAccesOnReleaseException = @"GDInvalidConcurrentAccesOnReleaseException";
+static NSString *const GDInvalidConcurrentAccesException = @"GDInvalidConcurrentAccesException";
 #endif
 
 #define WhileLocked(block) do { \
@@ -129,6 +134,43 @@ static NSValue *ConcurrencyValidAutoreleaseThreadDictionaryKey = nil;
       _Pragma("clang diagnostic pop");                                                 \
       queue;                                                                           \
     })
+static void BreakOnInvalidConcurrentAccessOnRelease(NSString *classStringRepresentation, NSArray *autoreleaseBacktrace, NSSet *invalidlyAccessedObjectsSet)
+
+{
+#ifndef GD_CORE_DATA_CONCURRENCE_DEBUGGING_DISABLE_LOG
+    NSLog(@"If you want to break on invalid concurrent access, add a breakpoint on symbol BreakOnInvalidConcurrentAccessOnRelease");
+    NSLog(@"Invalid concurrent access to object of class '%@' caused by earlier autorelease.  The autorelease pool was drained outside of the appropriate context for some managed objects.  You need to add an @autoreleasepool{} directive to ensure this object is released within the NSManagedObject's queue.\nOriginal autorelease backtrace: %@; Invalidly accessed objects: %@"
+          , classStringRepresentation
+          , autoreleaseBacktrace
+          , invalidlyAccessedObjectsSet);
+#endif
+    
+#ifdef GD_CORE_DATA_CONCURRENCE_DEBUGGING_ENABLE_EXCEPTION
+    [NSException raise:GDInvalidConcurrentAccesOnReleaseException
+                format:@"Invalid concurrent access to object of class '%@' caused by earlier autorelease.  The autorelease pool was drained outside of the appropriate context for some managed objects.  You need to add an @autoreleasepool{} directive to ensure this object is released within the NSManagedObject's queue.\nOriginal autorelease backtrace: %@; Invalidly accessed objects: %@"
+     , classStringRepresentation
+     , autoreleaseBacktrace
+     , invalidlyAccessedObjectsSet];
+#endif
+}
+
+static void BreakOnInvalidConcurrentAccess(NSString *selectorStringRepresentation, NSArray *callStackSymbols)
+{
+#ifndef GD_CORE_DATA_CONCURRENCE_DEBUGGING_DISABLE_LOG
+    NSLog(@"If you want to break on invalid concurrent access, add a breakpoint on symbol BreakOnInvalidConcurrentAccess");
+    NSLog(@"Invalid concurrent access to managed object calling '%@'; Stacktrace: %@"
+          , selectorStringRepresentation
+          , callStackSymbols);
+#endif
+    
+#ifdef GD_CORE_DATA_CONCURRENCE_DEBUGGING_ENABLE_EXCEPTION
+    [NSException raise:GDInvalidConcurrentAccesException
+                format:@"Invalid concurrent access to managed object calling '%@'; Stacktrace: %@"
+     , selectorStringRepresentation
+     , callStackSymbols];
+#endif
+}
+
 
 static BOOL ValidateConcurrencyForObjectWithExpectedIdentifier(id object, void *expectedConcurrencyIdentifier)
 {
@@ -216,7 +258,7 @@ static BOOL ValidateConcurrency(id object, SEL _cmd)
         } else if (GDConcurrencyFailureFunction) {
             GDConcurrencyFailureFunction(_cmd);
         } else {
-            NSLog(@"Invalid concurrent access to managed object calling '%@'; Stacktrace: %@", NSStringFromSelector(_cmd), [NSThread callStackSymbols]);
+            BreakOnInvalidConcurrentAccess(NSStringFromSelector(_cmd), [NSThread callStackSymbols]);
         }
     }
     return concurrencyValid;
@@ -610,7 +652,7 @@ static void AssignExpectedIdentifiersToObjectFromContext(id object, NSManagedObj
     BOOL wasValidRelease = [invalidlyAccessedObjectsSet count] == 0;
     
     if (!wasValidRelease) {
-        NSLog(@"Invalid concurrent access to object of class '%@' caused by earlier autorelease.  The autorelease pool was drained outside of the appropriate context for some managed objects.  You need to add an @autoreleasepool{} directive to ensure this object is released within the NSManagedObject's queue.\nOriginal autorelease backtrace: %@; Invalidly accessed objects: %@", NSStringFromClass(cls), self.autoreleaseBacktrace, invalidlyAccessedObjectsSet);
+        BreakOnInvalidConcurrentAccessOnRelease(NSStringFromClass(cls), self.autoreleaseBacktrace, invalidlyAccessedObjectsSet);
     }
     pthread_setspecific(gAutoreleaseTrackingStateKey, nil);
     self.autoreleaseBacktrace = nil;
