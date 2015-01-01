@@ -10,33 +10,33 @@
 	<string>GDCoreDataConcurrencyDebugging</string>
 	<key>IDESourceControlProjectOriginsDictionary</key>
 	<dict>
-		<key>42D41597-6F88-4494-A2AA-BD8F4C9ED9DA</key>
+		<key>7EC66276110F56261149A95B426589703EED10F8</key>
 		<string>https://github.com/facebook/fishhook.git</string>
-		<key>9CF735EF-38C6-40B5-885E-51E6F9E2ABA0</key>
+		<key>F48369D226C1084E2106B0954C2391A75187088E</key>
 		<string>ssh://github.com/GrahamDennis/GDCoreDataConcurrencyDebugging.git</string>
 	</dict>
 	<key>IDESourceControlProjectPath</key>
 	<string>Project/GDCoreDataConcurrencyDebugging.xcworkspace</string>
 	<key>IDESourceControlProjectRelativeInstallPathDictionary</key>
 	<dict>
-		<key>42D41597-6F88-4494-A2AA-BD8F4C9ED9DA</key>
+		<key>7EC66276110F56261149A95B426589703EED10F8</key>
 		<string>../../Vendor/fishhook</string>
-		<key>9CF735EF-38C6-40B5-885E-51E6F9E2ABA0</key>
+		<key>F48369D226C1084E2106B0954C2391A75187088E</key>
 		<string>../..</string>
 	</dict>
 	<key>IDESourceControlProjectURL</key>
 	<string>ssh://github.com/GrahamDennis/GDCoreDataConcurrencyDebugging.git</string>
 	<key>IDESourceControlProjectVersion</key>
-	<integer>110</integer>
+	<integer>111</integer>
 	<key>IDESourceControlProjectWCCIdentifier</key>
-	<string>9CF735EF-38C6-40B5-885E-51E6F9E2ABA0</string>
+	<string>F48369D226C1084E2106B0954C2391A75187088E</string>
 	<key>IDESourceControlProjectWCConfigurations</key>
 	<array>
 		<dict>
 			<key>IDESourceControlRepositoryExtensionIdentifierKey</key>
 			<string>public.vcs.git</string>
 			<key>IDESourceControlWCCIdentifierKey</key>
-			<string>42D41597-6F88-4494-A2AA-BD8F4C9ED9DA</string>
+			<string>7EC66276110F56261149A95B426589703EED10F8</string>
 			<key>IDESourceControlWCCName</key>
 			<string>fishhook</string>
 		</dict>
@@ -44,7 +44,7 @@
 			<key>IDESourceControlRepositoryExtensionIdentifierKey</key>
 			<string>public.vcs.git</string>
 			<key>IDESourceControlWCCIdentifierKey</key>
-			<string>9CF735EF-38C6-40B5-885E-51E6F9E2ABA0</string>
+			<string>F48369D226C1084E2106B0954C2391A75187088E</string>
 			<key>IDESourceControlWCCName</key>
 			<string>GDCoreDataConcurrencyDebugging</string>
 		</dict>
