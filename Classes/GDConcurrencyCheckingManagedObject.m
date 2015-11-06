@@ -508,7 +508,8 @@ static void GDCoreDataConcurrencyDebuggingInitialise()
                 {"dispatch_barrier_sync",   wrapper_dispatch_barrier_sync,      info.dli_fname, (void**)&original_dispatch_barrier_sync}
             };
             
-            rebind_symbols(rebindings, sizeof(rebindings)/sizeof(struct rebinding));
+            int retval = rebind_symbols(rebindings, sizeof(rebindings)/sizeof(struct rebinding));
+            NSAssert(retval == 0, @"ERROR: Failed to rebind symbols.  Concurrency debugging will not work!");
         }
         
         // Locks for the custom subclasses
