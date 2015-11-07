@@ -509,7 +509,7 @@ static void GDCoreDataConcurrencyDebuggingInitialise()
             };
             
             int retval = rebind_symbols(rebindings, sizeof(rebindings)/sizeof(struct rebinding));
-            NSAssert(retval == 0, @"ERROR: Failed to rebind symbols.  Concurrency debugging will not work!");
+            NSCAssert(retval == 0, @"ERROR: Failed to rebind symbols.  Concurrency debugging will not work!");
         }
         
         // Locks for the custom subclasses
