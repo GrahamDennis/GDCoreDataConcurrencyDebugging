@@ -502,10 +502,10 @@ static void GDCoreDataConcurrencyDebuggingInitialise()
             dladdr(EmptyFunction, &info);
             
             struct rebinding rebindings[] = {
-                {"dispatch_sync_f",         wrapper_dispatch_sync_f,            info.dli_fname, (void**)&original_dispatch_sync_f},
-                {"dispatch_barrier_sync_f", wrapper_dispatch_barrier_sync_f,    info.dli_fname, (void**)&original_dispatch_barrier_sync_f},
-                {"dispatch_sync",           wrapper_dispatch_sync,              info.dli_fname, (void**)&original_dispatch_sync},
-                {"dispatch_barrier_sync",   wrapper_dispatch_barrier_sync,      info.dli_fname, (void**)&original_dispatch_barrier_sync}
+                {"dispatch_sync_f",         wrapper_dispatch_sync_f,         (void**)&original_dispatch_sync_f},
+                {"dispatch_barrier_sync_f", wrapper_dispatch_barrier_sync_f, (void**)&original_dispatch_barrier_sync_f},
+                {"dispatch_sync",           wrapper_dispatch_sync,           (void**)&original_dispatch_sync},
+                {"dispatch_barrier_sync",   wrapper_dispatch_barrier_sync,   (void**)&original_dispatch_barrier_sync}
             };
             
             int retval = rebind_symbols(rebindings, sizeof(rebindings)/sizeof(struct rebinding));
