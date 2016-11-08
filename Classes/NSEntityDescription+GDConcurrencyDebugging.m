@@ -31,6 +31,16 @@
     if ([self isAbstract]) return normalClassName;
     
     Class normalClass = NSClassFromString(normalClassName);
+
+#warning If DietTracker.xcdatamodeld, CalendarDay entity is associated with a "DTDay" class that no longer exists anywhere in the project (also DTExerciseEntry and DTCoreDataSelectedMealEntry). This will cause normalClassName to be nil and eventually crash the app during GDConcurrencyCheckingManagedObjectClassForClass if running on a device. Unsure why the simulator is ok with this however. (20161107:AB)
+
+    if(!normalClass)
+    {
+        NSLog(@"CORE DATA: Warning! normalClassName does not have an associated known class in the current app! [%@]", normalClassName);
+
+        return nil;
+    }
+
     Class subclass = GDConcurrencyCheckingManagedObjectClassForClass(normalClass);
     NSString *subclassName = NSStringFromClass(subclass);
     return subclassName ?: normalClassName;
